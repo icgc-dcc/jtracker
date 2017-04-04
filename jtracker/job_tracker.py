@@ -1,22 +1,15 @@
-from utils import Status
-from job import Job
-from worker import Worker
-from gitracker import GiTracker
+from .utils import Status
 import yaml
 
 
 class JobTracker(object):
 
-    def __init__(self, conf_file):
+    def __init__(self, name=None, gitracker=None):
         """
         Initiate a JTracker object with a config file
         """
-        self.conf = self._parse_conf(conf_file)
-        self.gitracker = GiTracker(self.conf.get('git_url'))
-
-    def _parse_conf(self, conf_file):
-        with open(conf_file, 'r') as f:
-            return yaml.safe_load(f)
+        self._name = name
+        self._gitracker = gitracker
 
     def _move_job(self, source=None, target=None, job_file=None, timeout=None):
         self.gitracker.move_job(source=source, target=target, job_file=job_file, timeout=timeout)
@@ -29,7 +22,6 @@ class JobTracker(object):
 
         # once succeeded return a new job object
         if job_file: return Job(jtracker=self, worker=worker, job_file=job_file, status=Status.RUNNING)
-
 
     def job_json(self):
         pass

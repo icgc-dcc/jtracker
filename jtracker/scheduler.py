@@ -1,35 +1,27 @@
 from .workflow import Workflow
 from .job_tracker import JobTracker
+from .gitracker import GiTracker
 
 
 class Scheduler(object):
     def __init__(self, git_repo_url=None, workflow_name=None, workflow_version=None):
-        self._git_repo_url = git_repo_url
-        self._workflow_name = workflow_name
-        self._workflow_version = workflow_version
-        self._workflow_yaml = '.'.join([self._workflow_name, self._workflow_version, 'workflow.yaml'])
-        self._workflow = Workflow(self._workflow_yaml)
+        self._gitracker = GiTracker(git_repo_url, workflow_name=workflow_name, workflow_version=workflow_version)
 
-        self._jobs = {
-                        'main': self._workflow.main.to_dict()
+        # TODO: generate JobTrackers from parse self.gitracker.workflow
+        self._job_trackers = {
+                        'main': self.gitracker.workflow.workflow_dict.get('main')
                      }
-        for jt in self.workflow.jobs():
-            self._jobs.update({jt.name: jt.to_dict()})
 
-
-    @property
-    def git_repo_url(self):
-        return self._git_repo_url
+        for jt in self.gitracker.workflow.workflow_dict.get('jobs'):
+            self.job_trackers.update({jt.get('name'): jt})
 
     @property
-    def workflow_name(self):
-        return self._workflow_name
+    def gitracker(self):
+        return self._gitracker
 
     @property
-    def workflow_version(self):
-        return self._workflow_version
+    def job_trackers(self):
+        return self._job_trackers
 
-    @property
-    def workflow(self):
-        return self._workflow
-
+    def next_job(self, timeout=None):
+        pass
