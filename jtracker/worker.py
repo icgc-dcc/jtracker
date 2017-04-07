@@ -1,44 +1,44 @@
 import uuid
 
 class Worker(object):
-    def __init__(self, scheduler=None, host_ip=None, host_name=None, cpu_cores=None, memory=None):
-        self._scheduler = scheduler
+    def __init__(self, jtracker=None, host_ip=None, host_name=None, cpu_cores=None, memory=None):
+        self._jtracker = jtracker
         self._host_ip = host_ip
         self._host_name = host_name
         self._cpu_cores = cpu_cores
         self._memory = memory
         self._worker_id = uuid.uuid4()
-        self._current_job = None
+        self._current_task = None
 
 
     @property
-    def scheduler(self):
-        return self._scheduler
+    def jtracker(self):
+        return self._jtracker
 
-    def current_job(self):
-        return self._current_job
+    def current_task(self):
+        return self._current_task
 
-    def next_job(self):
-        if self._current_job: return  # if current job exists, return None
+    def next_task(self):
+        if self._current_task: return  # if current task exists, return None
 
-        next_job = self.scheduler.next_job(timeout=None)
-        if next_job:
-            self._current_job = next_job
-            return self._current_job
+        next_task = self.jtracker.next_task(self, timeout=None)
+        if next_task:
+            self._current_task = next_task
+            return self._current_task
         else:
             return
 
-    def log_job_info(self, status):
-        self.current_job.log_job_info(self.current_job, info={})  # info must be dict
+    def log_task_info(self, status):
+        self.current_task.log_task_info(self.current_task, info={})  # info must be dict
 
-    def job_json(self):
-        return self.current_job.job_json(self.current_job.job_file)
+    def task_json(self):
+        return self.current_task.task_json(self.current_task.task_file)
 
-    def job_failed(self):
-        self.current_job.job_failed(self.current_job.job_file)
-        self._current_job = None
+    def task_failed(self):
+        self.current_task.task_failed(self.current_task.task_file)
+        self._current_task = None
 
-    def job_completed(self):
-        self.current_job.job_completed(self.current_job.job_file)
-        self._current_job = None
+    def task_completed(self):
+        self.current_task.task_completed(self.current_task.task_file)
+        self._current_task = None
 

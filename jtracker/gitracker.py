@@ -14,7 +14,7 @@ class GiTracker(object):
 
         self._workflow_name = workflow_name
         self._workflow_version = workflow_version
-        yaml_file_name = '.'.join([self._workflow_name, self._workflow_version, 'workflow.yaml'])
+        yaml_file_name = '.'.join([self.workflow_name, self.workflow_version, 'workflow.yaml'])
 
         self._workflow = Workflow(os.path.join(self.local_git_path, yaml_file_name))
 
@@ -23,16 +23,30 @@ class GiTracker(object):
     def git_repo_url(self):
         return self._git_repo_url
 
+
     @property
     def workflow(self):
         return self._workflow
+
+
+    @property
+    def workflow_name(self):
+        return self._workflow_name
+
+
+    @property
+    def workflow_version(self):
+        return self._workflow_version
+
 
     @property
     def local_git_path(self):
         return self._local_git_path
 
+
     def move_job(self, source=None, target=None, job_file=None, timeout=None):
         pass
+
 
     def git_clone(self):
         repo = git.Repo.init(self.local_git_path)

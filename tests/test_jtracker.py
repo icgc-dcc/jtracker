@@ -1,24 +1,24 @@
-from jtracker import Scheduler
+from jtracker import JTracker
 from jtracker import Worker
 
 
-js = Scheduler(
+jt = JTracker(
                     git_repo_url = 'git@github.com:junjun-zhang/jtracker_example_workflow.git',
                     workflow_name = 'ega-file-transfer',
                     workflow_version = '0.1'
                 )
 
-worker = Worker(scheduler=js, host_ip='192.168.1.1')
+worker = Worker(jtracker=jt, host_ip='192.168.1.1')
 
 
-job_dict1 = worker.next_job()
+job_dict1 = worker.next_task()
 
-job_dict1 = worker.current_job()
+job_dict1 = worker.current_task()
 
-#worker.log_job_info({})
+#worker.log_task_info({})
 
-#worker.job_failed()
+#worker.task_failed()
 
-worker.next_job()
+worker.next_task()
 
-#worker.job_completed()
+#worker.task_completed()
