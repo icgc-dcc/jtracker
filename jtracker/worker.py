@@ -10,12 +10,12 @@ class Worker(object):
         self._host_name = host_name
         self._cpu_cores = cpu_cores
         self._memory = memory
-        self._worker_id = 'worker.%s.%s.host.%s.%s' % (
-                                                            str(int(time.time())),
-                                                            str(uuid.uuid4())[:8],
-                                                            self.jtracker.host_ip,
-                                                            self.jtracker.host_id
-                                                        )
+        self._host_id = self.jtracker.host_id
+        self._worker_id = 'worker.%s.%s.%s' % (
+                                                str(int(time.time())),
+                                                str(uuid.uuid4())[:8],
+                                                self.host_id
+                                            )
 
         self._current_task = None
 
@@ -25,6 +25,11 @@ class Worker(object):
     @property
     def jtracker(self):
         return self._jtracker
+
+
+    @property
+    def host_id(self):
+        return self._host_id
 
 
     @property

@@ -10,8 +10,8 @@ from .utils import JOB_STATE
 class JTracker(object):
     def __init__(self, git_repo_url=None, workflow_name=None, workflow_version=None, jt_home=None):
         self._init_jt_home(jt_home)
-        self._init_host_id()
         self._init_host_ip()
+        self._init_host_id()
 
         self._gitracker = GiTracker(git_repo_url, workflow_name=workflow_name, workflow_version=workflow_version)
 
@@ -76,8 +76,9 @@ class JTracker(object):
                 self._host_id = f.read().rstrip()
         else:
             with open(host_id_file, 'w') as f:
-                self._host_id = str(uuid.uuid4())[:8]
-                f.write(self.host_id)
+                self._host_id = '%s.%s.%s' % ('host', self.host_ip, str(uuid.uuid4())[:8])
+                f.write('%s\n' % self.host_id)
+
 
     def _init_host_ip(self):
         self._host_ip = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
