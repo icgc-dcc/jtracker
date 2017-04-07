@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 
 
@@ -9,8 +10,12 @@ class Worker(object):
         self._host_name = host_name
         self._cpu_cores = cpu_cores
         self._memory = memory
-        self._worker_id = '.'.join(['worker', str(uuid.uuid4()),
-                                    'host', self.jtracker.host_id, self.jtracker.host_ip])
+        self._worker_id = 'worker.%s.%s.host.%s.%s' % (
+                                                            str(int(time.time())),
+                                                            str(uuid.uuid4())[:8],
+                                                            self.jtracker.host_ip,
+                                                            self.jtracker.host_id
+                                                        )
 
         self._current_task = None
 
