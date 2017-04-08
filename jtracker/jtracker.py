@@ -2,29 +2,24 @@ import os
 import uuid
 import socket
 from .workflow import Workflow
-from .task_tracker import TaskTracker
 from .gitracker import GiTracker
-from .utils import JOB_STATE
+from .job import Job
+from .task import Task
 
 
 class JTracker(object):
-    def __init__(self, git_repo_url=None, workflow_name=None, workflow_version=None, jt_home=None):
+    def __init__(self, git_repo_url=None, workflow_name=None, workflow_version=None, jt_home=os.environ.get('JT_HOME')):
         self._init_jt_home(jt_home)
         self._init_host_ip()
         self._init_host_id()
 
         self._gitracker = GiTracker(git_repo_url, workflow_name=workflow_name, workflow_version=workflow_version)
 
+        yaml_file_name = '.'.join([workflow_name, workflow_version, 'workflow.yaml'])
+        self._workflow = Workflow(os.path.join(self.gitracker.local_git_path, yaml_file_name))
+
         # TODO: generate JobTrackers from parse self.gitracker.workflow
-        self._job_descriptor = self.gitracker.workflow.workflow_dict.get('descriptor')
-
-        self._task_trackers = {}
-        for td in self.gitracker.workflow.workflow_dict.get('tasks'):
-            self._task_trackers.update(
-                            {td.get('name'): TaskTracker(descriptor_dict=td, gitracker=self.gitracker)}
-                        )
-
-        self._build_dag()
+        self._job_descriptor = self.workflow.workflow_dict.get('descriptor')
 
 
     @property
@@ -48,22 +43,19 @@ class JTracker(object):
 
 
     @property
-    def task_trackers(self):
-        return self._task_trackers
-
-
-    @property
-    def workflow_dag(self):
-        return self._workflow_dag
+    def workflow(self):
+        return self._workflow
 
 
     def next_task(self, worker=None, timeout=None):
-        pass
+        #return self.gitracker.next_task(worker_id=worker.worker_id, timeout=timeout)
+        # to be implemented
+        return Task()
 
 
-    def _init_jt_home(self, jt_home):
-        if not jt_home: jt_home = os.environ['HOME']
-        self._jt_home = os.path.join(jt_home, '.jtracker')
+    def _init_jt_home(self, jt_home=None):
+        if not jt_home: jt_home = os.path.join(os.environ['HOME'], 'jtracker')
+        self._jt_home = jt_home
 
         if not os.path.isdir(self.jt_home):
             os.makedirs(self.jt_home)
@@ -81,9 +73,9 @@ class JTracker(object):
 
 
     def _init_host_ip(self):
-        self._host_ip = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+        try:
+            self._host_ip = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
+        except:
+            self._host_ip = '127.0.0.1'
 
 
-    def _build_dag(self):
-        # TODO: use task trackers to build a workflow DAG
-        self._workflow_dag = None

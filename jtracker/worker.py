@@ -17,9 +17,9 @@ class Worker(object):
                                                 self.host_id
                                             )
 
-        self._current_task = None
+        self._init_workdir()
 
-        self._record_local_git_path()  # more of for debugging purpose
+        self._current_task = None
 
 
     @property
@@ -37,17 +37,24 @@ class Worker(object):
         return self._worker_id
 
 
+    @property
+    def workdir(self):
+        return self._workdir
+
+
+    @property
     def current_task(self):
         return self._current_task
 
 
     def next_task(self):
-        if self._current_task: return  # if current task exists, return None
+        if self.current_task: return  # if current task exists, return None
 
         next_task = self.jtracker.next_task(self, timeout=None)
+
         if next_task:
             self._current_task = next_task
-            return self._current_task
+            return self.current_task
         else:
             return
 
@@ -66,12 +73,17 @@ class Worker(object):
 
 
     def task_completed(self):
-        self.current_task.task_completed(self.current_task.task_file)
+        if not self.current_task: return
+
+        self.current_task.task_completed()
         self._current_task = None
 
 
-    def _record_local_git_path(self):
-        worker_id_file = os.path.join(self.jtracker.jt_home, self.worker_id)
-        with open(worker_id_file, 'w')as f:
+    def _init_workdir(self):
+        self._workdir = os.path.join(self.jtracker.jt_home, self.worker_id)
+
+        os.makedirs(self.workdir)
+
+        with open(os.path.join(self.workdir, 'local_git_path.txt'), 'w') as f:
             f.write('%s\n' % self.jtracker.gitracker.local_git_path)
 
