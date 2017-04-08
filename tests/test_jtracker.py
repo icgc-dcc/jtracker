@@ -1,3 +1,5 @@
+# test driven development
+
 from jtracker import JTracker
 from jtracker import Worker
 
@@ -16,11 +18,15 @@ print "worker.host_id: %s" % worker.host_id
 print "worker.worker_id: %s" % worker.worker_id
 print "worker.workdir: %s" % worker.workdir
 
-print "jt.local_git_path: %s" % jt.gitracker.local_git_path
+print "jt.jt_home: %s" % jt.jt_home
+print "jt.gitracker_home: %s" % jt.gitracker_home
 
 task1 = worker.next_task()
 
-print task1.task_dict
+print "task1.name: %s" % task1.name
+print "task1.task_dict: %s" % task1.task_dict
+print "task1.job.job_id: %s" % task1.job.job_id
+print "task1.job.job_dict: %s" % task1.job.job_dict
 
 task_dict1 = worker.current_task
 
@@ -29,7 +35,7 @@ print task1.task_dict
 worker.task_completed()
 
 print "task completed"
-print task1.task_dict
+print "task1.task_dict: %s" % task1.task_dict
 
 #worker.log_task_info({})
 

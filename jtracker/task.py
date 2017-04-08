@@ -12,6 +12,11 @@ class Task(object):
 
 
     @property
+    def name(self):
+        return self._name
+
+
+    @property
     def jtracker(self):
         return self._jtracker
 
@@ -22,13 +27,22 @@ class Task(object):
 
 
     @property
-    def task_dict(self):
-        return self._task_dict
+    def worker(self):
+        return self._worker
 
 
     @property
-    def status(self):
-        return self._status
+    def state(self):
+        return self._state
+
+
+    @property
+    def task_dict(self):
+        return self.jtracker.get_task_dict( worker_id=self.worker.worker_id,
+                                            task_name=self.name,
+                                            job_id=self.job.job_id,
+                                            job_state=self.job.state
+                                        )
 
 
     def log_task_info(self, info={}):  # info must be dict

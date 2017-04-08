@@ -1,10 +1,12 @@
 import os
+import json
 import uuid
 import socket
 from .workflow import Workflow
 from .gitracker import GiTracker
 from .job import Job
 from .task import Task
+from .utils import JOB_STATE
 
 
 class JTracker(object):
@@ -43,6 +45,11 @@ class JTracker(object):
 
 
     @property
+    def gitracker_home(self):
+        return self.gitracker.gitracker_home
+
+
+    @property
     def workflow(self):
         return self._workflow
 
@@ -50,7 +57,60 @@ class JTracker(object):
     def next_task(self, worker=None, timeout=None):
         #return self.gitracker.next_task(worker_id=worker.worker_id, timeout=timeout)
         # to be implemented
-        return Task()
+        # psuedo code for now
+        task1 = Task(name="task.md5sum_check", job=Job(
+                                            job_id = 'job.6b3b673d-612b-4ff6-89d2-038ceec94c5e',
+                                            state = JOB_STATE.RUNNING,
+                                            jtracker = self
+                                        ),
+                    worker=worker, jtracker=self)
+
+        # psuedo code for now
+        # start task from QUEUED jobs
+        """
+        task2 = Task(name="task.md5sum_check", job=Job(
+                                            job_id = 'job.136414c0-aa43-4169-977b-e022e07a6fc9',
+                                            state = JOB_STATE.QUEUED,
+                                            jtracker = self
+                                        ),
+                    worker=worker, jtracker=self)
+        """
+
+        return task1
+
+
+    def get_job_dict(self, job_id=None, state=None):
+        with open(self._get_job_json_path(job_id=job_id, state=state), 'r') as f:
+            return json.load(f)
+
+
+    def _get_job_json_path(self, job_id=None, state=None):
+        file_name = '.'.join([job_id, 'json'])
+
+        if state in (JOB_STATE.BACKLOG, JOB_STATE.QUEUED):
+            path = os.path.join(self.gitracker_home, state)
+        else:
+            path = os.path.join(self.gitracker_home, state, job_id)
+
+        return os.path.join(path, file_name)
+
+
+    def get_task_dict(self, worker_id=None, task_name=None, job_id=None, job_state=None):
+        file_path = self._get_task_json_path(worker_id=worker_id, task_name=task_name, job_id=job_id, job_state=job_state)
+
+        with open(file_path, 'r') as f:
+            return json.load(f)
+
+
+    def _get_task_json_path(self, worker_id=None, task_name=None, job_id=None, job_state=None):
+        if job_state in (JOB_STATE.BACKLOG, JOB_STATE.QUEUED):
+            path = os.path.join(self.gitracker_home, job_state)
+        else:
+            path = os.path.join(self.gitracker_home, job_state, job_id)
+
+        file_name = '.'.join([task_name, 'json'])
+
+        return self._find_file(file_name, path)
 
 
     def _init_jt_home(self, jt_home=None):
@@ -78,4 +138,9 @@ class JTracker(object):
         except:
             self._host_ip = '127.0.0.1'
 
+    @staticmethod
+    def _find_file(name, path):
+        for root, dirs, files in os.walk(path):
+            if name in files:
+                return os.path.join(root, name)
 
