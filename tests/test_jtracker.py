@@ -9,8 +9,14 @@ jt = JTracker(
                     workflow_version = '0.1'
                 )
 
-worker = Worker(jtracker=jt, host_ip='192.168.1.1')
+worker = Worker(jtracker=jt)
 
+print "worker.host_ip: %s" % worker.host_ip
+print "worker.host_id: %s" % worker.host_id
+print "worker.worker_id: %s" % worker.worker_id
+print "worker.workdir: %s" % worker.workdir
+
+print "jt.local_git_path: %s" % jt.gitracker.local_git_path
 
 task1 = worker.next_task()
 

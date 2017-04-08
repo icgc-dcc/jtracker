@@ -68,7 +68,7 @@ class JTracker(object):
                 self._host_id = f.read().rstrip()
         else:
             with open(host_id_file, 'w') as f:
-                self._host_id = '%s.%s.%s' % ('host', self.host_ip, str(uuid.uuid4())[:8])
+                self._host_id = str(uuid.uuid4())[:8]
                 f.write('%s\n' % self.host_id)
 
 

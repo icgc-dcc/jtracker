@@ -6,15 +6,16 @@ import uuid
 class Worker(object):
     def __init__(self, jtracker=None, host_ip=None, host_name=None, cpu_cores=None, memory=None):
         self._jtracker = jtracker
-        self._host_ip = host_ip
+        self._host_ip = jtracker.host_ip
         self._host_name = host_name
         self._cpu_cores = cpu_cores
         self._memory = memory
         self._host_id = self.jtracker.host_id
-        self._worker_id = 'worker.%s.%s.%s' % (
+        self._worker_id = 'worker.%s.%s.host.%s.%s' % (
                                                 str(int(time.time())),
                                                 str(uuid.uuid4())[:8],
-                                                self.host_id
+                                                self.host_id,
+                                                self.host_ip
                                             )
 
         self._init_workdir()
@@ -25,6 +26,11 @@ class Worker(object):
     @property
     def jtracker(self):
         return self._jtracker
+
+
+    @property
+    def host_ip(self):
+        return self._host_ip
 
 
     @property
