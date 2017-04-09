@@ -53,7 +53,5 @@ class Task(object):
         self.jtracker.task_failed(self)
 
 
-    def task_completed(self):
-        #self.jtracker.task_completed(self)
-        # to be implemented
-        return
+    def task_completed(self, timeout=None):
+        return self.jtracker.task_completed(self.worker, timeout=timeout)

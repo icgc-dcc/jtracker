@@ -7,7 +7,7 @@ class JOB_STATE:  # enum
     RUNNING = 'job_state.running'
 
 class TASK_STATE:  # enum
-    QUEUED = 'task.queued'
-    COMPLETED = 'task.completed'
-    FAILED = 'task.failed'
-    RUNNING = 'task.running'
+    QUEUED = 'task_state.queued'
+    COMPLETED = 'task_state.completed'
+    FAILED = 'task_state.failed'
+    RUNNING = 'task_state.running'

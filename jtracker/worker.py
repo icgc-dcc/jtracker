@@ -78,11 +78,12 @@ class Worker(object):
         self._current_task = None
 
 
-    def task_completed(self):
+    def task_completed(self, timeout=None):
         if not self.current_task: return
 
-        self.current_task.task_completed()
+        self.current_task.task_completed(timeout=timeout)
         self._current_task = None
+        return True
 
 
     def _init_workdir(self):

@@ -53,30 +53,50 @@ class JTracker(object):
     def workflow(self):
         return self._workflow
 
+    def next_job(self, worker=None):
+        """
+        Usually this is called from internal when a worker requests a new task
+        but no task is available from the running jobs, we need to then start a
+        new job. It is safe to call this directly from the worker as well.
+        """
+        return self.gitracker.next_job(worker=worker)
+
 
     def next_task(self, worker=None, timeout=None):
-        #return self.gitracker.next_task(worker_id=worker.worker_id, timeout=timeout)
-        # to be implemented
-        # psuedo code for now
-        task1 = Task(name="task.md5sum_check", job=Job(
-                                            job_id = 'job.6b3b673d-612b-4ff6-89d2-038ceec94c5e',
-                                            state = JOB_STATE.RUNNING,
-                                            jtracker = self
-                                        ),
-                    worker=worker, jtracker=self)
+        # proper implementation
+        task = self.gitracker.next_task(worker=worker, jtracker=self, timeout=timeout)
+        if task:
+            return task
+        else: # not task in running jobs, then start a new job
+            # only when new job is started, try get next task again
+            if self.next_job(worker=worker):
+                # TODO: This is a recursive call, when task from new job is taken by another work it could
+                #       run into infinite recursion although unlikely. We need to come up with some way to
+                #       make sure it only retry once
+                self.next_task(worker=worker, timeout=timeout)
 
-        # psuedo code for now
-        # start task from QUEUED jobs
-        """
-        task2 = Task(name="task.md5sum_check", job=Job(
-                                            job_id = 'job.136414c0-aa43-4169-977b-e022e07a6fc9',
-                                            state = JOB_STATE.QUEUED,
-                                            jtracker = self
-                                        ),
-                    worker=worker, jtracker=self)
-        """
 
-        return task1
+    def task_completed(self, worker=None, timeout=None):
+        return self.gitracker.task_completed(
+                                        task_name = worker.current_task.name,
+                                        worker_id = worker.worker_id,
+                                        job_id = worker.current_task.job.job_id,
+                                        timeout = timeout
+                                    )
+
+        # after successfully call task_completed
+        # always check whether the whole job is completed
+        # if yes, call job_completed on gitracker
+
+
+
+    def task_failed(self, worker=None, timeout=None):
+        self.gitracker.task_failed(
+                                        task_name = worker.current_task.name,
+                                        worker_id = worker.worker_id,
+                                        job_id = worker.job.job_id,
+                                        timeout = timeout
+                                    )
 
 
     def get_job_dict(self, job_id=None, state=None):
