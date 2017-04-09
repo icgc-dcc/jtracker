@@ -12,7 +12,11 @@ from .job import Job
 class GiTracker(object):
     def __init__(self, git_repo_url=None, workflow_name=None, workflow_version=None):
         self._git_repo_url = git_repo_url
-        self.git_clone()
+        folder_name = re.sub(r'\.git$', '', os.path.basename(self.git_repo_url))
+        self._local_git_path = os.path.join(tempfile.mkdtemp(), folder_name)  # TODO: we can allow user to choose where to clone git
+
+        output = subprocess.check_output(["git", "clone", self.git_repo_url, self.local_git_path])
+
         self._gitracker_home = os.path.join(self.local_git_path,
                                             '.'.join([workflow_name, workflow_version, 'jtracker']))
 
@@ -32,13 +36,15 @@ class GiTracker(object):
         return self._local_git_path
 
 
-    def job_completed(self):
+    def job_completed(self, job_id=None):
+        # will first check whether all tasks for this job are all completed
+        # if yes, move the job to completed state
         pass
 
 
     def next_job(self, worker=None):
-        print "Start new job"
         # always git pull first to synchronize with the remote
+        # we may need to do Git hard reset when a job/task update already done by another worker
         self._git_cmd(["pull"])
         # check queued jobs
         queued_job_path = os.path.join(self.gitracker_home, JOB_STATE.QUEUED)
@@ -64,6 +70,7 @@ class GiTracker(object):
             self._git_cmd(['add', new_job_path])
             self._git_cmd(['commit', '-m', 'Started new job %s' % job_id])
             self._git_cmd(['push'])
+            return True  # successfully started a new job
 
 
     def next_task(self, worker=None, jtracker=None, timeout=None):
@@ -126,12 +133,7 @@ class GiTracker(object):
         return self._move_task(source_path=source_path, target_path=target_path, timeout=timeout)
 
 
-    def task_failed():
-        pass
-
-
-    def _move_job(self, source_path=None, target_path=None, job_file=None, timeout=None):
-        # always git pull first to synchronize with the remote
+    def task_failed(self, task_name, worker_id, job_id, timeout):
         pass
 
 
@@ -143,17 +145,6 @@ class GiTracker(object):
                     )
         self._git_cmd(["push"])
         return True
-
-
-    def git_clone(self):
-        folder_name = re.sub(r'\.git$', '', os.path.basename(self.git_repo_url))
-        self._local_git_path = os.path.join(tempfile.mkdtemp(), folder_name)  # TODO: we can allow user to choose where to clone git
-
-        if self.git_repo_url.startswith('file://'): # for local testing only
-            shutil.copytree(self.git_repo_url.replace('file:/', ''), self.local_git_path)
-            return
-
-        output = subprocess.check_output(["git", "clone", self.git_repo_url, self.local_git_path])
 
 
     def _git_cmd(self, cmds=[]):

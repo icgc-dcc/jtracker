@@ -53,11 +53,30 @@ class JTracker(object):
     def workflow(self):
         return self._workflow
 
+
+    # we will need some methods to handle failed tasks/jobs, such as re-enqueue/suspend tasks/jobs,
+    # although the system should have built-in support for automatic retry according to user's settings
+    def retry_job(self, job_id=None, force=False):
+        pass
+
+
+    def suspend_job(self, job_id=None):
+        """
+        put job on hold when finishes its current running task if any
+        """
+        pass
+
+
+    def retry_task(self, task_name=None, job_id=None, force=False):
+        pass
+
+
     def next_job(self, worker=None):
         """
         Usually this is called from internal when a worker requests a new task
         but no task is available from the running jobs, we need to then start a
         new job. It is safe to call this directly from the worker as well.
+        Once a job is started, its tasks will be queued for workers to pickup
         """
         return self.gitracker.next_job(worker=worker)
 
@@ -68,30 +87,30 @@ class JTracker(object):
         if task:
             return task
         else: # not task in running jobs, then start a new job
-            # only when new job is started, try get next task again
-            if self.next_job(worker=worker):
-                # TODO: This is a recursive call, when task from new job is taken by another work it could
-                #       run into infinite recursion although unlikely. We need to come up with some way to
-                #       make sure it only retry once
-                self.next_task(worker=worker, timeout=timeout)
+            # we just need to trigger it here, the client will need to ask for new task again
+            self.next_job(worker=worker)
+            return False  # return False as we didn't get a task even though a new job might have been started
 
 
     def task_completed(self, worker=None, timeout=None):
-        return self.gitracker.task_completed(
+        ret = self.gitracker.task_completed(
                                         task_name = worker.current_task.name,
                                         worker_id = worker.worker_id,
                                         job_id = worker.current_task.job.job_id,
                                         timeout = timeout
                                     )
 
-        # after successfully call task_completed
-        # always check whether the whole job is completed
-        # if yes, call job_completed on gitracker
-
+        # after successfully call task_completed, it's possible the whole job is completed,
+        # so always call job_completed on gitracker which will ensure job completes properly
+        if ret:
+            self.gitracker.job_completed(job_id=worker.job.job_id)
+            return True
+        else:
+            return False
 
 
     def task_failed(self, worker=None, timeout=None):
-        self.gitracker.task_failed(
+        return self.gitracker.task_failed(
                                         task_name = worker.current_task.name,
                                         worker_id = worker.worker_id,
                                         job_id = worker.job.job_id,
@@ -100,11 +119,13 @@ class JTracker(object):
 
 
     def get_job_dict(self, job_id=None, state=None):
+        # it may be better to deligate this to gitracker
         with open(self._get_job_json_path(job_id=job_id, state=state), 'r') as f:
             return json.load(f)
 
 
     def _get_job_json_path(self, job_id=None, state=None):
+        # it may be better to deligate this to gitracker
         file_name = '.'.join([job_id, 'json'])
 
         if state in (JOB_STATE.BACKLOG, JOB_STATE.QUEUED):
@@ -116,6 +137,7 @@ class JTracker(object):
 
 
     def get_task_dict(self, worker_id=None, task_name=None, job_id=None, job_state=None):
+        # it may be better to deligate this to gitracker
         file_path = self._get_task_json_path(worker_id=worker_id, task_name=task_name, job_id=job_id, job_state=job_state)
 
         with open(file_path, 'r') as f:
@@ -123,6 +145,7 @@ class JTracker(object):
 
 
     def _get_task_json_path(self, worker_id=None, task_name=None, job_id=None, job_state=None):
+        # it may be better to deligate this to gitracker
         if job_state in (JOB_STATE.BACKLOG, JOB_STATE.QUEUED):
             path = os.path.join(self.gitracker_home, job_state)
         else:

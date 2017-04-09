@@ -8,3 +8,6 @@ class Workflow(object):
     @property
     def workflow_dict(self):
         return self._workflow_dict
+
+
+    # this class needs to expand more

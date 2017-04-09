@@ -53,24 +53,28 @@ class Worker(object):
         return self._current_task
 
 
-    def next_task(self):
-        if self.current_task: return  # if current task exists, return None
+    def next_task(self, timeout=None, retry=None):
+        # if current task exists, return None. Current task must be finished
+        # either completed or failed (or maybe suspended if we add support later)
+        if self.current_task: return
 
+        # it maybe necessary to automatically retry this call on behave of
+        # the client according to timeout and retry settings
         next_task = self.jtracker.next_task(self, timeout=None)
 
         if next_task:
             self._current_task = next_task
             return self.current_task
         else:
-            return
+            return False
 
 
     def log_task_info(self, status):
         self.current_task.log_task_info(self.current_task, info={})  # info must be dict
 
 
-    def task_json(self):
-        return self.current_task.task_json(self.current_task.task_file)
+    def task_dict(self):
+        return self.current_task.task_dict(self.current_task.task_file)
 
 
     def task_failed(self):

@@ -8,7 +8,6 @@ class Task(object):
         self._worker = worker
         self._jtracker = jtracker
         self._state = state
-        self._task_dict = "task_dict to be implemented"  #TODO: populate this
 
 
     @property
@@ -49,8 +48,8 @@ class Task(object):
         self.jtracker.log_task_info(self, info=info)
 
 
-    def task_failed(self):
-        self.jtracker.task_failed(self)
+    def task_failed(self, timeout=None):
+        self.jtracker.task_failed(self.worker, timeout=timeout)
 
 
     def task_completed(self, timeout=None):
