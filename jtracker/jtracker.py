@@ -94,16 +94,16 @@ class JTracker(object):
 
     def task_completed(self, worker=None, timeout=None):
         ret = self.gitracker.task_completed(
-                                        task_name = worker.current_task.name,
+                                        task_name = worker.task.name,
                                         worker_id = worker.worker_id,
-                                        job_id = worker.current_task.job.job_id,
+                                        job_id = worker.task.job.job_id,
                                         timeout = timeout
                                     )
 
         # after successfully call task_completed, it's possible the whole job is completed,
         # so always call job_completed on gitracker which will ensure job completes properly
         if ret:
-            self.gitracker.job_completed(job_id=worker.job.job_id)
+            self.gitracker.job_completed(job_id=worker.task.job.job_id)
             return True
         else:
             return False
@@ -111,7 +111,7 @@ class JTracker(object):
 
     def task_failed(self, worker=None, timeout=None):
         return self.gitracker.task_failed(
-                                        task_name = worker.current_task.name,
+                                        task_name = worker.task.name,
                                         worker_id = worker.worker_id,
                                         job_id = worker.job.job_id,
                                         timeout = timeout

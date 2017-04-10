@@ -85,7 +85,7 @@ class GiTracker(object):
                     # TODO: check whether this t is ready to run by looking into its depends_on task(s)
                     #       for now, choose this first t
                     job_id = root.split('/')[-2]
-                    running_worker_path = os.path.join(root, '..', TASK_STATE.RUNNING, worker.worker_id)
+                    running_worker_path = os.path.join(root.replace(TASK_STATE.QUEUED, TASK_STATE.RUNNING), worker.worker_id)
                     if not os.path.isdir(running_worker_path): os.makedirs(running_worker_path)
 
                     if self._move_task(os.path.join(root, task_name), running_worker_path):

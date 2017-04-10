@@ -20,7 +20,7 @@ class Worker(object):
 
         self._init_workdir()
 
-        self._current_task = None
+        self._task = None
 
 
     @property
@@ -49,44 +49,44 @@ class Worker(object):
 
 
     @property
-    def current_task(self):
-        return self._current_task
+    def task(self):
+        return self._task
 
 
     def next_task(self, timeout=None, retry=None):
         # if current task exists, return None. Current task must be finished
         # either completed or failed (or maybe suspended if we add support later)
-        if self.current_task: return
+        if self.task: return
 
         # it maybe necessary to automatically retry this call on behave of
         # the client according to timeout and retry settings
         next_task = self.jtracker.next_task(self, timeout=None)
 
         if next_task:
-            self._current_task = next_task
-            return self.current_task
+            self._task = next_task
+            return self.task
         else:
             return False
 
 
     def log_task_info(self, status):
-        self.current_task.log_task_info(self.current_task, info={})  # info must be dict
+        self.task.log_task_info(self.task, info={})  # info must be dict
 
 
     def task_dict(self):
-        return self.current_task.task_dict(self.current_task.task_file)
+        return self.task.task_dict(self.task.task_file)
 
 
     def task_failed(self):
-        self.current_task.task_failed(self.current_task.task_file)
-        self._current_task = None
+        self.task.task_failed(self.task.task_file)
+        self._task = None
 
 
     def task_completed(self, timeout=None):
-        if not self.current_task: return
+        if not self.task: return
 
-        self.current_task.task_completed(timeout=timeout)
-        self._current_task = None
+        self.task.task_completed(timeout=timeout)
+        self._task = None
         return True
 
 
