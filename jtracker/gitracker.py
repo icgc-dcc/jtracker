@@ -1,12 +1,15 @@
 import os
 import re
+import glob
 import uuid
 import shutil
 import tempfile
 import subprocess
+import json
 from .utils import JOB_STATE, TASK_STATE
 from .task import Task
 from .job import Job
+from .workflow import Workflow
 
 
 class GiTracker(object):
@@ -19,6 +22,9 @@ class GiTracker(object):
 
         self._gitracker_home = os.path.join(self.local_git_path,
                                             '.'.join([workflow_name, workflow_version, 'jtracker']))
+
+        yaml_file_name = '.'.join([workflow_name, workflow_version, 'workflow.yaml'])
+        self._workflow = Workflow(os.path.join(self.local_git_path, yaml_file_name))
 
 
     @property
@@ -36,6 +42,11 @@ class GiTracker(object):
         return self._local_git_path
 
 
+    @property
+    def workflow(self):
+        return self._workflow
+
+
     def job_completed(self, job_id=None):
         # will first check whether all tasks for this job are all completed
         # if yes, move the job to completed state
@@ -48,11 +59,16 @@ class GiTracker(object):
         self._git_cmd(["pull"])
         # check queued jobs
         queued_job_path = os.path.join(self.gitracker_home, JOB_STATE.QUEUED)
-        job_files = os.listdir(queued_job_path)
+        job_files = glob.glob(os.path.join(queued_job_path, 'job.*.json'))
+
         if job_files:
-            job_file = job_files[0]
+            job_file = os.path.basename(job_files[0])
             job_id = re.sub(r'\.json$', '', job_file)
             job_file_path = os.path.join(queued_job_path, job_file)
+
+            with open(job_file_path, 'r') as f:
+                job_dict = json.loads(f.read())
+
             new_job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING, job_id)
             if not os.path.isdir(new_job_path): os.makedirs(new_job_path)
 
@@ -65,7 +81,14 @@ class GiTracker(object):
 
                 # TODO: create task folders under new_job_path/TASK_STATE.QUEUED
                 if t_state == TASK_STATE.QUEUED:
-                    pass
+                    for stp in self.workflow.workflow_steps:
+                        task_folder = os.path.join(t_path, 'task.%s' % stp)
+                        os.makedirs(task_folder)  # create the task folder
+
+                        # new create task JSON file under task_folder
+                        task_dict = self._job_dict2task_dict(task_name=stp, job_dict=job_dict)
+                        with open(os.path.join(task_folder, 'task.%s.json' % stp), 'w') as f:
+                            f.write(json.dumps(task_dict))
 
             self._git_cmd(['add', new_job_path])
             self._git_cmd(['commit', '-m', 'Started new job %s' % job_id])
@@ -84,12 +107,18 @@ class GiTracker(object):
                 for task_name in dirs:
                     # TODO: check whether this t is ready to run by looking into its depends_on task(s)
                     #       for now, choose this first t
+
                     job_id = root.split('/')[-2]
+
+                    if not self._check_task_dependency(worker=worker, task_name=task_name, job_id=job_id): continue
+
                     running_worker_path = os.path.join(root.replace(TASK_STATE.QUEUED, TASK_STATE.RUNNING), worker.worker_id)
                     if not os.path.isdir(running_worker_path): os.makedirs(running_worker_path)
 
                     if self._move_task(os.path.join(root, task_name), running_worker_path):
                         # succeeded
+                        # TODO: consider move object creation to jtracker instead of here, just
+                        #       need to return needed information to create Task and Job instances
                         task = Task(name=task_name, job=Job(
                                                                 job_id = job_id,
                                                                 state = JOB_STATE.RUNNING,
@@ -155,3 +184,49 @@ class GiTracker(object):
 
         os.chdir(origWD)
 
+
+    def _job_dict2task_dict(self, task_name=None, job_dict={}):
+        # TODO: to be implemented
+        return {}
+
+
+    def _check_task_dependency(self, worker=None, task_name=None, job_id=None):
+        # constraint can be 'same_host', 'same_worker' or None
+        worker_id = worker.worker_id
+        host_id = worker.host_id
+        task_name = re.sub(r'^task\.', '', task_name)
+
+        depends_on = self.workflow.workflow_steps.get(task_name).get('depends_on')
+        if not depends_on: return True
+
+        constraint = self.workflow.workflow_steps.get(task_name).get('constraint')
+
+        worker_id_pattern = 'worker.*'
+        if constraint == 'same_worker':
+            worker_id_pattern = worker_id
+        elif constraint == 'same_host':
+            worker_id_pattern = 'worker.*.host.%s.*' % host_id
+
+        for d in depends_on:
+            parent_task, parent_state = d.split('.')
+            path_to_parent_task_file = os.path.join(
+                                                    self.gitracker_home,
+                                                    JOB_STATE.RUNNING,
+                                                    job_id,
+                                                    'task_state.%s' % parent_state,
+                                                    worker_id_pattern,
+                                                    'task.%s' % parent_task,
+                                                    'task.%s.json' % parent_task
+                                                )
+
+            if not glob.glob(path_to_parent_task_file):
+                # TODO: to be safe, it's neccessary to tag the parent task file, maybe by registering
+                #       the worker and next step in the parent task file, this will make this file update
+                #       part of the transaction, if the commit and push step (final step) succeed, it's safe
+                #       to proceed because the parent task file is still in previous checked state. Without
+                #       this tagging, a locally checked parent task file might get updated / moved by other
+                #       worker, so it's not safe to ensure the dependent task stayed the same state as when
+                #       it's checked
+                return False
+
+        return True

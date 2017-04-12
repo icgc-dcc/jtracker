@@ -2,7 +2,6 @@ import os
 import json
 import uuid
 import socket
-from .workflow import Workflow
 from .gitracker import GiTracker
 from .job import Job
 from .task import Task
@@ -16,12 +15,6 @@ class JTracker(object):
         self._init_host_id()
 
         self._gitracker = GiTracker(git_repo_url, workflow_name=workflow_name, workflow_version=workflow_version)
-
-        yaml_file_name = '.'.join([workflow_name, workflow_version, 'workflow.yaml'])
-        self._workflow = Workflow(os.path.join(self.gitracker.local_git_path, yaml_file_name))
-
-        # TODO: generate JobTrackers from parse self.gitracker.workflow
-        self._job_descriptor = self.workflow.workflow_dict.get('descriptor')
 
 
     @property
@@ -51,7 +44,7 @@ class JTracker(object):
 
     @property
     def workflow(self):
-        return self._workflow
+        return self.gitracker._workflow
 
 
     # we will need some methods to handle failed tasks/jobs, such as re-enqueue/suspend tasks/jobs,
