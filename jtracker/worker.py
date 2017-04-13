@@ -4,6 +4,10 @@ import uuid
 from retrying import retry
 from .utils import retry_if_result_none
 
+wait_random_min=2000   #  2 sec
+wait_random_max=10000  # 10 sec
+stop_max_delay=60000   # 60 sec
+
 
 class Worker(object):
     def __init__(self, jtracker=None, host_ip=None, host_name=None, cpu_cores=None, memory=None):
@@ -55,7 +59,10 @@ class Worker(object):
         return self._task
 
 
-    @retry(retry_on_result=retry_if_result_none, wait_random_min=2000, wait_random_max=20000, stop_max_delay=30000)
+    @retry(retry_on_result=retry_if_result_none, \
+                wait_random_min=wait_random_min, \
+                wait_random_max=wait_random_max, \
+                stop_max_delay=stop_max_delay)
     def next_task(self, timeout=None, retry=None):
         # if current task exists, return None. Current task must be finished
         # either completed or failed (or maybe suspended if we add support later)
@@ -72,7 +79,10 @@ class Worker(object):
             return None
 
 
-    @retry(retry_on_result=retry_if_result_none, wait_random_min=2000, wait_random_max=20000, stop_max_delay=30000)
+    @retry(retry_on_result=retry_if_result_none, \
+                wait_random_min=wait_random_min, \
+                wait_random_max=wait_random_max, \
+                stop_max_delay=stop_max_delay)
     def log_task_info(self, status):
         return self.task.log_task_info(self.task, info={})  # info must be dict
 
@@ -81,7 +91,10 @@ class Worker(object):
         return self.task.task_dict(self.task.task_file)
 
 
-    @retry(retry_on_result=retry_if_result_none, wait_random_min=2000, wait_random_max=20000, stop_max_delay=30000)
+    @retry(retry_on_result=retry_if_result_none, \
+                wait_random_min=wait_random_min, \
+                wait_random_max=wait_random_max, \
+                stop_max_delay=stop_max_delay)
     def task_completed(self, timeout=None):
         if not self.task: return False
 
@@ -92,7 +105,10 @@ class Worker(object):
             return
 
 
-    @retry(retry_on_result=retry_if_result_none, wait_random_min=2000, wait_random_max=20000, stop_max_delay=30000)
+    @retry(retry_on_result=retry_if_result_none, \
+                wait_random_min=wait_random_min, \
+                wait_random_max=wait_random_max, \
+                stop_max_delay=stop_max_delay)
     def task_failed(self):
         if not self.task: return False
 

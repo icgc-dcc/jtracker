@@ -56,6 +56,8 @@ class GiTracker(object):
     def next_job(self, worker=None):
         # always git pull first to synchronize with the remote
         # we may need to do Git hard reset when a job/task update already done by another worker
+        self._git_cmd(["checkout", "master"])
+        self._git_cmd(["reset", "--hard", "origin/master"])
         self._git_cmd(["pull"])
         # check queued jobs
         queued_job_path = os.path.join(self.gitracker_home, JOB_STATE.QUEUED)
@@ -90,7 +92,7 @@ class GiTracker(object):
                         with open(os.path.join(task_folder, 'task.%s.json' % stp), 'w') as f:
                             f.write(json.dumps(task_dict))
 
-            self._git_cmd(['add', new_job_path])
+            self._git_cmd(['add', self.gitracker_home])  # stage the change
             self._git_cmd(['commit', '-m', 'Started new job %s' % job_id])
             self._git_cmd(['push'])
             return True  # successfully started a new job
@@ -98,6 +100,8 @@ class GiTracker(object):
 
     def next_task(self, worker=None, jtracker=None, timeout=None):
         # always git pull first to synchronize with the remote
+        self._git_cmd(["checkout", "master"])
+        self._git_cmd(["reset", "--hard", "origin/master"])
         self._git_cmd(["pull"])
         # check queued task in running jobs
         running_job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING)
@@ -131,6 +135,8 @@ class GiTracker(object):
 
     def task_completed(self, task_name, worker_id, job_id, timeout):
         # always git pull first to synchronize with the remote
+        self._git_cmd(["checkout", "master"])
+        self._git_cmd(["reset", "--hard", "origin/master"])
         self._git_cmd(["pull"])
 
         # current task and job states must be both RUNNING
