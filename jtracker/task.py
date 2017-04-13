@@ -45,11 +45,11 @@ class Task(object):
 
 
     def log_task_info(self, info={}):  # info must be dict
-        self.jtracker.log_task_info(self, info=info)
+        return self.jtracker.log_task_info(self, info=info)
 
 
     def task_failed(self, timeout=None):
-        self.jtracker.task_failed(self.worker, timeout=timeout)
+        return self.jtracker.task_failed(self.worker, timeout=timeout)
 
 
     def task_completed(self, timeout=None):

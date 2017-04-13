@@ -33,18 +33,26 @@ print "worker.task.name: %s" % worker1.task.name
 print "worker.task.job.job_id: %s" % worker1.task.job.job_id
 
 
-worker2 = Worker(jtracker=jt)
-task2 = worker2.next_task()
+worker1.task_completed()
+
+worker1.next_task()
 
 worker1.task_completed()
+
+
+
+worker2 = Worker(jtracker=jt)
+
+task2 = worker2.next_task()
+
 worker2.task_completed()
 
 
-task3 = worker1.next_task()
-worker1.task_completed()
+#task3 = worker1.next_task()
+#worker1.task_completed()
 
-task4 = worker1.next_task()
-worker1.task_completed()
+#task4 = worker1.next_task()
+#worker1.task_completed()
 
 
 #worker.log_task_info({})

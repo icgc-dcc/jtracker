@@ -79,10 +79,13 @@ class JTracker(object):
         task = self.gitracker.next_task(worker=worker, jtracker=self, timeout=timeout)
         if task:
             return task
-        else: # not task in running jobs, then start a new job
+        else: # no task in running jobs, then start a new job
             # we just need to trigger it here, the client will need to ask for new task again
             self.next_job(worker=worker)
-            return False  # return False as we didn't get a task even though a new job might have been started
+
+            # return None as we didn't get a task even though a new job might have been started,
+            # upon receiving 'None' response the caller will call again
+            return
 
 
     def task_completed(self, worker=None, timeout=None):
@@ -103,12 +106,19 @@ class JTracker(object):
 
 
     def task_failed(self, worker=None, timeout=None):
-        return self.gitracker.task_failed(
+        ret = self.gitracker.task_failed(
                                         task_name = worker.task.name,
                                         worker_id = worker.worker_id,
                                         job_id = worker.job.job_id,
                                         timeout = timeout
                                     )
+        if ret:
+            self.gitracker.job_failed(job_id=worker.task.job.job_id)
+            return True
+        else:
+            return False
+
+
 
 
     def get_job_dict(self, job_id=None, state=None):

@@ -1,6 +1,8 @@
 import os
 import time
 import uuid
+from retrying import retry
+from .utils import retry_if_result_none
 
 
 class Worker(object):
@@ -53,10 +55,11 @@ class Worker(object):
         return self._task
 
 
+    @retry(retry_on_result=retry_if_result_none, wait_random_min=2000, wait_random_max=20000, stop_max_delay=30000)
     def next_task(self, timeout=None, retry=None):
         # if current task exists, return None. Current task must be finished
         # either completed or failed (or maybe suspended if we add support later)
-        if self.task: return
+        if self.task: return False
 
         # it maybe necessary to automatically retry this call on behave of
         # the client according to timeout and retry settings
@@ -66,28 +69,38 @@ class Worker(object):
             self._task = next_task
             return self.task
         else:
-            return False
+            return None
 
 
+    @retry(retry_on_result=retry_if_result_none, wait_random_min=2000, wait_random_max=20000, stop_max_delay=30000)
     def log_task_info(self, status):
-        self.task.log_task_info(self.task, info={})  # info must be dict
+        return self.task.log_task_info(self.task, info={})  # info must be dict
 
 
     def task_dict(self):
         return self.task.task_dict(self.task.task_file)
 
 
-    def task_failed(self):
-        self.task.task_failed(self.task.task_file)
-        self._task = None
-
-
+    @retry(retry_on_result=retry_if_result_none, wait_random_min=2000, wait_random_max=20000, stop_max_delay=30000)
     def task_completed(self, timeout=None):
-        if not self.task: return
+        if not self.task: return False
 
-        self.task.task_completed(timeout=timeout)
-        self._task = None
-        return True
+        if self.task.task_completed(timeout=timeout):
+            self._task = None
+            return True
+        else:
+            return
+
+
+    @retry(retry_on_result=retry_if_result_none, wait_random_min=2000, wait_random_max=20000, stop_max_delay=30000)
+    def task_failed(self):
+        if not self.task: return False
+
+        if self.task.task_failed(timeout=timeout):
+            self._task = None
+            return True
+        else:
+            return
 
 
     def _init_workdir(self):
