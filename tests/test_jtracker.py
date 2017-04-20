@@ -7,7 +7,7 @@ from jtracker import Worker
 
 
 jt = JTracker(
-                    git_repo_url = 'git@github.com:junjun-zhang/jtracker-example-workflows.git',
+                    git_repo_url = 'git@github.com:icgc-dcc/jtracker-example-workflows.git',
                     workflow_name = 'ega-file-transfer-to-collab',
                     workflow_version = '0.3.0'
                 )
