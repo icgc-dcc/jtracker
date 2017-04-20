@@ -3,15 +3,14 @@ import json
 import time
 import uuid
 import subprocess
-import docker
 from retrying import retry
 from .utils import retry_if_result_none
 
 
 # we may allow this to be set by the client in a config file of some sort
-wait_random_min=200   #  2 sec
-wait_random_max=1000  # 10 sec
-stop_max_delay=6000   # 60 sec
+wait_random_min=1000   #  1 sec
+wait_random_max=5000   #  5 sec
+stop_max_delay=60000   # 60 sec
 
 
 class Worker(object):
