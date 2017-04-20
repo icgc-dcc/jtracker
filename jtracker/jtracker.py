@@ -43,6 +43,11 @@ class JTracker(object):
 
 
     @property
+    def workflow_home(self):
+        return self.gitracker.workflow_home
+
+
+    @property
     def workflow(self):
         return self.gitracker._workflow
 
@@ -88,13 +93,8 @@ class JTracker(object):
             return
 
 
-    def task_completed(self, worker=None, timeout=None):
-        ret = self.gitracker.task_completed(
-                                        task_name = worker.task.name,
-                                        worker_id = worker.worker_id,
-                                        job_id = worker.task.job.job_id,
-                                        timeout = timeout
-                                    )
+    def task_completed(self, worker=None):
+        ret = self.gitracker.task_completed(worker)
 
         # after successfully call task_completed, it's possible the whole job is completed,
         # so always call job_completed on gitracker which will ensure job completes properly
@@ -109,7 +109,7 @@ class JTracker(object):
         ret = self.gitracker.task_failed(
                                         task_name = worker.task.name,
                                         worker_id = worker.worker_id,
-                                        job_id = worker.job.job_id,
+                                        job_id = worker.task.job.job_id,
                                         timeout = timeout
                                     )
         if ret:

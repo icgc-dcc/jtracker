@@ -8,8 +8,9 @@ class Workflow(object):
         self._name = self.workflow_dict.get('workflow').get('name')
         self._version = self.workflow_dict.get('workflow').get('version')
 
-        self._workflow_steps = {}
-        self._get_workflow_steps()
+        self._get_workflow_calls()
+
+        print self.workflow_calls
 
 
     @property
@@ -28,15 +29,16 @@ class Workflow(object):
 
 
     @property
-    def workflow_steps(self):
-        return self._workflow_steps
+    def workflow_calls(self):
+        return self._workflow_calls
 
 
-    def _get_workflow_steps(self):
-        for st in self.workflow_dict.get('tasks'):
-            self._workflow_steps[st.pop('name')] = {
-                'depends_on': st.pop('depends_on'),
-                'constraint': st.pop('constraint'),
-                'descriptor': st
-            }
+    def _get_workflow_calls(self):
+        calls = self.workflow_dict.get('workflow', {}).get('calls', {})
 
+        for c in calls:
+            task_called = calls[c].get('task')
+            if not task_called:
+                calls[c]['task'] = c
+
+        self._workflow_calls = calls

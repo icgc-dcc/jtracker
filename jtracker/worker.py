@@ -1,12 +1,16 @@
 import os
 import time
 import uuid
+import subprocess
+import docker
 from retrying import retry
 from .utils import retry_if_result_none
 
-wait_random_min=2000   #  2 sec
-wait_random_max=10000  # 10 sec
-stop_max_delay=60000   # 60 sec
+
+# we may allow this to be set by the client in a config file of some sort
+wait_random_min=200   #  2 sec
+wait_random_max=1000  # 10 sec
+stop_max_delay=6000   # 60 sec
 
 
 class Worker(object):
@@ -59,6 +63,11 @@ class Worker(object):
         return self._task
 
 
+    @property
+    def cwd(self):
+        return self._cwd
+
+
     @retry(retry_on_result=retry_if_result_none, \
                 wait_random_min=wait_random_min, \
                 wait_random_max=wait_random_max, \
@@ -74,9 +83,28 @@ class Worker(object):
 
         if next_task:
             self._task = next_task
+
+            self._cwd = os.path.join(self.workdir, self.task.job.job_id, self.task.name)
+
+            if not os.path.isdir(self.cwd): os.makedirs(self.cwd)
+            os.chdir(self.cwd)  # new task, new cwd
+
             return self.task
         else:
             return None
+
+
+    def run(self, retry=None):
+        # if current task not exists, return False
+        if not self.task: return False
+
+        cmd = "PATH=%s:$PATH %s" % (os.path.join(self.jtracker.workflow_home, 'tasks'), self.task.task_dict.get('command'))
+        try:
+            r = subprocess.check_output(cmd, shell=True)
+        except Exception, e:
+            return False  # task failed
+
+        return True  # task completed
 
 
     @retry(retry_on_result=retry_if_result_none, \
@@ -95,11 +123,13 @@ class Worker(object):
                 wait_random_min=wait_random_min, \
                 wait_random_max=wait_random_max, \
                 stop_max_delay=stop_max_delay)
-    def task_completed(self, timeout=None):
+    def task_completed(self):
         if not self.task: return False
 
-        if self.task.task_completed(timeout=timeout):
+        if self.task.task_completed():
             self._task = None
+            self._cwd = self.workdir  # set cwd back to worker's workdir
+            os.chdir(self.cwd)
             return True
         else:
             return
@@ -112,7 +142,7 @@ class Worker(object):
     def task_failed(self):
         if not self.task: return False
 
-        if self.task.task_failed(timeout=timeout):
+        if self.task.task_failed():
             self._task = None
             return True
         else:
@@ -123,6 +153,8 @@ class Worker(object):
         self._workdir = os.path.join(self.jtracker.jt_home, self.worker_id)
 
         os.makedirs(self.workdir)
+        self._cwd = self.workdir
+        os.chdir(self.cwd)
 
         with open(os.path.join(self.workdir, 'local_git_path.txt'), 'w') as f:
             f.write('%s\n' % self.jtracker.gitracker.local_git_path)

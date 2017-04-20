@@ -1,5 +1,6 @@
 # test driven development
 
+import os
 import json
 from jtracker import JTracker
 from jtracker import Worker
@@ -7,11 +8,12 @@ from jtracker import Worker
 
 jt = JTracker(
                     git_repo_url = 'git@github.com:junjun-zhang/jtracker_example_workflow.git',
-                    workflow_name = 'ega-file-transfer',
-                    workflow_version = '0.1'
+                    workflow_name = 'ega-file-transfer-to-collab',
+                    workflow_version = '0.3.0'
                 )
 
 
+print "cwd: %s" % os.getcwd()
 print "jt.jt_home: %s" % jt.jt_home
 print "jt.gitracker_home: %s" % jt.gitracker_home
 
@@ -21,6 +23,7 @@ print "worker.host_ip: %s" % worker1.host_ip
 print "worker.host_id: %s" % worker1.host_id
 print "worker.worker_id: %s" % worker1.worker_id
 print "worker.workdir: %s" % worker1.workdir
+print "new cwd: %s" % os.getcwd()
 
 task1 = worker1.next_task()
 
@@ -33,19 +36,39 @@ print "worker.task.name: %s" % worker1.task.name
 print "worker.task.job.job_id: %s" % worker1.task.job.job_id
 
 
-worker1.task_completed()
+if worker1.run():
+    print 'Task succeeded'
+    worker1.task_completed()
+else:
+    print 'Task failed'
+    worker1.task_failed()
 
-worker1.next_task()
 
-worker1.task_completed()
-
+if worker1.next_task():
+    if worker1.run():
+        print 'Task succeeded'
+        worker1.task_completed()
+    else:
+        print 'Task failed'
+        worker1.task_failed()
 
 
 worker2 = Worker(jtracker=jt)
 
-task2 = worker2.next_task()
+while worker2.next_task():
+    if worker2.run():
+        print 'Task succeeded'
+        worker2.task_completed()
+    else:
+        print 'Task failed'
+        worker2.task_failed()
 
-worker2.task_completed()
+
+#worker2 = Worker(jtracker=jt)
+
+#task2 = worker2.next_task()
+
+#worker2.task_completed()
 
 
 #task3 = worker1.next_task()

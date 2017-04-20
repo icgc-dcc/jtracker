@@ -18,18 +18,25 @@ class GiTracker(object):
         folder_name = re.sub(r'\.git$', '', os.path.basename(self.git_repo_url))
         self._local_git_path = os.path.join(tempfile.mkdtemp(), folder_name)  # TODO: we can allow user to choose where to clone git
 
-        output = subprocess.check_output(["git", "clone", self.git_repo_url, self.local_git_path])
+        output = subprocess.check_output(["git", "clone", "--recursive", self.git_repo_url, self.local_git_path])
 
         self._gitracker_home = os.path.join(self.local_git_path,
                                             '.'.join([workflow_name, workflow_version, 'jtracker']))
 
-        yaml_file_name = '.'.join([workflow_name, workflow_version, 'workflow.yaml'])
-        self._workflow = Workflow(os.path.join(self.local_git_path, yaml_file_name))
+        self._workflow_home = os.path.join(self.local_git_path, workflow_name)
+
+        yaml_file_name = '.'.join([workflow_name, 'jt', 'yaml'])
+        self._workflow = Workflow(os.path.join(self.workflow_home, yaml_file_name))
 
 
     @property
     def gitracker_home(self):
         return self._gitracker_home
+
+
+    @property
+    def workflow_home(self):
+        return self._workflow_home
 
 
     @property
@@ -56,8 +63,9 @@ class GiTracker(object):
     def next_job(self, worker=None):
         # always git pull first to synchronize with the remote
         # we may need to do Git hard reset when a job/task update already done by another worker
-        self._git_cmd(["checkout", "master"])
+        self._git_cmd(["checkout", "-q", "master"])
         self._git_cmd(["reset", "--hard", "origin/master"])
+        self._git_cmd(["clean", "-qfdx"])
         self._git_cmd(["pull"])
         # check queued jobs
         queued_job_path = os.path.join(self.gitracker_home, JOB_STATE.QUEUED)
@@ -83,7 +91,7 @@ class GiTracker(object):
 
                 # TODO: create task folders under new_job_path/TASK_STATE.QUEUED
                 if t_state == TASK_STATE.QUEUED:
-                    for stp in self.workflow.workflow_steps:
+                    for stp in self.workflow.workflow_calls:  # workflow calls defined to call tasks
                         task_folder = os.path.join(t_path, 'task.%s' % stp)
                         os.makedirs(task_folder)  # create the task folder
 
@@ -100,8 +108,9 @@ class GiTracker(object):
 
     def next_task(self, worker=None, jtracker=None, timeout=None):
         # always git pull first to synchronize with the remote
-        self._git_cmd(["checkout", "master"])
+        self._git_cmd(["checkout", "-q", "master"])
         self._git_cmd(["reset", "--hard", "origin/master"])
+        self._git_cmd(["clean", "-qfdx"])
         self._git_cmd(["pull"])
         # check queued task in running jobs
         running_job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING)
@@ -133,10 +142,15 @@ class GiTracker(object):
                         return task
 
 
-    def task_completed(self, task_name, worker_id, job_id, timeout):
+    def task_completed(self, worker=None): # task_name, worker_id, job_id, timeout):
+        task_name = worker.task.name
+        worker_id = worker.worker_id
+        job_id = worker.task.job.job_id
+
         # always git pull first to synchronize with the remote
-        self._git_cmd(["checkout", "master"])
+        self._git_cmd(["checkout", "-q", "master"])
         self._git_cmd(["reset", "--hard", "origin/master"])
+        self._git_cmd(["clean", "-qfdx"])
         self._git_cmd(["pull"])
 
         # current task and job states must be both RUNNING
@@ -156,6 +170,27 @@ class GiTracker(object):
         if not os.path.isdir(source_path):
             return False # we will need better error handling later
 
+        # now here we may collect outputs from worker to be included in task json file
+        output_json_file = os.path.join(worker.cwd, 'output.json')
+
+        if os.path.isfile(output_json_file):
+            with open(output_json_file) as output_json:
+                output_dict = json.load(output_json)
+        else:
+            output_dict = {}
+
+        output_dict['worker_id'] = worker.worker_id  # record worker_id
+
+        task_dict = worker.task.task_dict
+        if not task_dict.get('output'):
+            task_dict['output'] = []
+
+        task_dict['output'].append(output_dict)
+
+        # write back to task_json file
+        with open(os.path.join(source_path, '%s.json' % task_name), 'w') as f:
+            f.write(json.dumps(task_dict))
+
         target_path = os.path.join(
                             self.gitracker_home,
                             job_state,
@@ -165,15 +200,16 @@ class GiTracker(object):
                         )
         if not os.path.isdir(target_path): os.makedirs(target_path)
 
-        return self._move_task(source_path=source_path, target_path=target_path, timeout=timeout)
+        return self._move_task(source_path=source_path, target_path=target_path)
 
 
     def task_failed(self, task_name, worker_id, job_id, timeout):
         pass
 
 
-    def _move_task(self, source_path=None, target_path=None, timeout=None):
+    def _move_task(self, source_path=None, target_path=None):
         self._git_cmd(["mv", source_path, target_path])
+        self._git_cmd(["add", target_path])
         self._git_cmd(["commit", "-m", "JTracker moved %s to %s" % (
                                 source_path.replace('%s/' % self.gitracker_home, ''),
                                 target_path.replace('%s/' % self.gitracker_home, ''))]
@@ -192,29 +228,44 @@ class GiTracker(object):
 
 
     def _job_dict2task_dict(self, task_name=None, job_dict={}):
-        # TODO: to be implemented
-        return {}
+        called_task = self.workflow.workflow_calls[task_name].get('task')
+        task_dict = {
+            'input': {},
+            'command': self.workflow.workflow_dict.get('tasks').get(called_task).get('command')
+        }
+
+        call_input = self.workflow.workflow_calls[task_name].get('input')
+
+        for i in call_input:
+            if '.' in call_input[i]:
+                value = '{%s}' % call_input[i]
+            else:
+                value = job_dict.get(call_input[i])
+
+            task_dict['input'][i] = value
+
+        return task_dict
 
 
     def _check_task_dependency(self, worker=None, task_name=None, job_id=None):
-        # constraint can be 'same_host', 'same_worker' or None
         worker_id = worker.worker_id
         host_id = worker.host_id
         task_name = re.sub(r'^task\.', '', task_name)
 
-        depends_on = self.workflow.workflow_steps.get(task_name).get('depends_on')
+        depends_on = self.workflow.workflow_calls.get(task_name).get('depends_on')
         if not depends_on: return True
 
-        constraint = self.workflow.workflow_steps.get(task_name).get('constraint')
+        # constraint can be 'same_host', 'same_worker', 'shared_fs' or None
+        constraint = self.workflow.workflow_dict.get('workflow',{}).get('execution',{}).get('constraint')
 
         worker_id_pattern = 'worker.*'
-        if constraint == 'same_worker':
+        if constraint and constraint == 'same_worker':
             worker_id_pattern = worker_id
-        elif constraint == 'same_host':
+        elif constraint and constraint == 'same_host':
             worker_id_pattern = 'worker.*.host.%s.*' % host_id
 
         for d in depends_on:
-            parent_task, parent_state = d.split('.')
+            parent_task, parent_state = d.split('@')
             path_to_parent_task_file = os.path.join(
                                                     self.gitracker_home,
                                                     JOB_STATE.RUNNING,

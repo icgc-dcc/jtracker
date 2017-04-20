@@ -48,9 +48,9 @@ class Task(object):
         return self.jtracker.log_task_info(self, info=info)
 
 
-    def task_failed(self, timeout=None):
-        return self.jtracker.task_failed(self.worker, timeout=timeout)
+    def task_failed(self):
+        return self.jtracker.task_failed(self.worker)
 
 
-    def task_completed(self, timeout=None):
-        return self.jtracker.task_completed(self.worker, timeout=timeout)
+    def task_completed(self):
+        return self.jtracker.task_completed(self.worker)
