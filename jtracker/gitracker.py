@@ -23,7 +23,7 @@ class GiTracker(object):
         self._gitracker_home = os.path.join(self.local_git_path,
                                             '.'.join([workflow_name, workflow_version, 'jtracker']))
 
-        self._workflow_home = os.path.join(self.local_git_path, workflow_name)
+        self._workflow_home = os.path.join(self.gitracker_home, 'workflow')
 
         yaml_file_name = '.'.join([workflow_name, 'jt', 'yaml'])
         self._workflow = Workflow(os.path.join(self.workflow_home, yaml_file_name))
