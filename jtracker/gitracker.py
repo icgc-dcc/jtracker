@@ -231,7 +231,8 @@ class GiTracker(object):
         called_task = self.workflow.workflow_calls[task_name].get('task')
         task_dict = {
             'input': {},
-            'command': self.workflow.workflow_dict.get('tasks').get(called_task).get('command')
+            'command': self.workflow.workflow_dict.get('tasks').get(called_task).get('command'),
+            'runtime': self.workflow.workflow_dict.get('tasks').get(called_task).get('runtime')
         }
 
         call_input = self.workflow.workflow_calls[task_name].get('input')

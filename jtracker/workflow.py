@@ -9,8 +9,7 @@ class Workflow(object):
         self._version = self.workflow_dict.get('workflow').get('version')
 
         self._get_workflow_calls()
-
-        print self.workflow_calls
+        self._add_default_runtime_to_tasks()
 
 
     @property
@@ -42,3 +41,9 @@ class Workflow(object):
                 calls[c]['task'] = c
 
         self._workflow_calls = calls
+
+
+    def _add_default_runtime_to_tasks(self):
+        for t in self.workflow_dict.get('tasks', {}):
+            if not 'runtime' in t:  # no runtime defined in the task, add the default one
+                self.workflow_dict['tasks'][t]['runtime'] = self.workflow_dict.get('workflow', {}).get('runtime')

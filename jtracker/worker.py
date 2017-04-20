@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import uuid
 import subprocess
@@ -99,8 +100,10 @@ class Worker(object):
         if not self.task: return False
 
         cmd = "PATH=%s:$PATH %s" % (os.path.join(self.jtracker.workflow_home, 'tasks'), self.task.task_dict.get('command'))
+        arg = "'%s'" % json.dumps(self.task.task_dict) if self.task.task_dict else ''
+
         try:
-            r = subprocess.check_output(cmd, shell=True)
+            r = subprocess.check_output("%s %s" % (cmd, arg), shell=True)
         except Exception, e:
             return False  # task failed
 
