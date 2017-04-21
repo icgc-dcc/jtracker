@@ -7,10 +7,16 @@ from daemonocle.cli import DaemonCLI
 
 
 @click.group()
+@click.option('--git-repo-url', '-g', envvar='JT_GIT_URL', required=True)
+@click.option('--workflow-name', '-n', envvar='JT_WORKFLOW', required=True)
+@click.option('--workflow-version', '-w', envvar='JT_WKFL_VER', required=True)
 @click.pass_context
-def main(ctx):
+def main(ctx, git_repo_url, workflow_name, workflow_version):
     # initializing ctx.obj
-    pass
+    ctx.obj = {}
+    ctx.obj['JT_GIT_URL'] = git_repo_url
+    ctx.obj['JT_WORKFLOW'] = workflow_name
+    ctx.obj['JT_WKFL_VER'] = workflow_version
 
 
 @main.command()
@@ -31,9 +37,9 @@ def worker(ctx):
     Start worker.
     """
     jt = JTracker(
-                    git_repo_url = 'git@github.com:icgc-dcc/jtracker-example-workflows.git',
-                    workflow_name = 'ega-file-transfer-to-collab',
-                    workflow_version = '0.3.0'
+                    git_repo_url = ctx.obj['JT_GIT_URL'],
+                    workflow_name = ctx.obj['JT_WORKFLOW'],
+                    workflow_version = ctx.obj['JT_WKFL_VER']
                 )
 
     worker = Worker(jtracker=jt)
