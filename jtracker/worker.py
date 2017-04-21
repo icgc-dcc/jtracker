@@ -7,10 +7,10 @@ from retrying import retry
 from .utils import retry_if_result_none
 
 
-# we may allow this to be set by the client in a config file of some sort
-wait_random_min=1000   #  1 sec
-wait_random_max=5000   #  5 sec
-stop_max_delay=60000   # 60 sec
+# we will allow this to be set by the client in a config file of some sort
+wait_random_min = 1000    #   1 sec
+wait_random_max = 10000   #  10 sec
+stop_max_delay = None  #60000   #  60 sec, None will never stop
 
 
 class Worker(object):

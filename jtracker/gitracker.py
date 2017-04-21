@@ -66,7 +66,7 @@ class GiTracker(object):
         self._git_cmd(["checkout", "-q", "master"])
         self._git_cmd(["reset", "--hard", "origin/master"])
         self._git_cmd(["clean", "-qfdx"])
-        self._git_cmd(["pull"])
+        self._git_cmd(["pull", "-q"])
         # check queued jobs
         queued_job_path = os.path.join(self.gitracker_home, JOB_STATE.QUEUED)
         job_files = glob.glob(os.path.join(queued_job_path, 'job.*.json'))
@@ -102,7 +102,7 @@ class GiTracker(object):
 
             self._git_cmd(['add', self.gitracker_home])  # stage the change
             self._git_cmd(['commit', '-m', 'Started new job %s' % job_id])
-            self._git_cmd(['push'])
+            self._git_cmd(['push', '-q'])
             return True  # successfully started a new job
 
 
@@ -111,7 +111,7 @@ class GiTracker(object):
         self._git_cmd(["checkout", "-q", "master"])
         self._git_cmd(["reset", "--hard", "origin/master"])
         self._git_cmd(["clean", "-qfdx"])
-        self._git_cmd(["pull"])
+        self._git_cmd(["pull", "-q"])
         # check queued task in running jobs
         running_job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING)
 
@@ -151,7 +151,7 @@ class GiTracker(object):
         self._git_cmd(["checkout", "-q", "master"])
         self._git_cmd(["reset", "--hard", "origin/master"])
         self._git_cmd(["clean", "-qfdx"])
-        self._git_cmd(["pull"])
+        self._git_cmd(["pull", "-q"])
 
         # current task and job states must be both RUNNING
         task_state = TASK_STATE.RUNNING
@@ -214,7 +214,7 @@ class GiTracker(object):
                                 source_path.replace('%s/' % self.gitracker_home, ''),
                                 target_path.replace('%s/' % self.gitracker_home, ''))]
                     )
-        self._git_cmd(["push"])
+        self._git_cmd(["push", "-q"])
         return True
 
 

@@ -42,5 +42,10 @@ setup(
     packages = ['jtracker'],
     install_requires = install_reqs,
     tests_require = tests_require,
-    cmdclass = {'test': PyTest}
+    cmdclass = {'test': PyTest},
+    entry_points={
+        'console_scripts': [
+            'jt=jtracker.cli:main',
+        ]
+    }
 )
