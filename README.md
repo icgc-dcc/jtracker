@@ -26,14 +26,14 @@ jt
 Follow this example to develop your workflow: https://github.com/icgc-dcc/ega-file-transfer-to-collab
 
 
-## Create a git repository to manage workflow execution
+## Create a Git repository to manage workflow execution
 
 Here is an example: https://github.com/icgc-dcc/jtracker-example-workflows/tree/master/ega-file-transfer-to-collab.0.3.0.jtracker
 
 At this time, you will need to set up this Git repository on your own manually. In the near future, 'jt' cli tool will be able to set it up automatically for you. 
 
 
-## Start JTracker Worker on a task execution host
+## Start JTracker Worker on task execution hosts
 
 On a task execution host, you can start a worker as follow assuming workflow definition and job json files exist as specified.
 
