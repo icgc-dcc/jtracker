@@ -11,6 +11,15 @@ from .task import Task
 from .job import Job
 from .workflow import Workflow
 
+from retrying import retry
+from .utils import retry_if_result_none
+
+
+# we will allow this to be set by the client in a config file of some sort
+wait_random_min = 1000    #   1 sec
+wait_random_max = 10000   #  10 sec
+stop_max_delay = None  #60000   #  60 sec, None will never stop
+
 
 class GiTracker(object):
     def __init__(self, git_repo_url=None, workflow_name=None, workflow_version=None):
@@ -54,25 +63,55 @@ class GiTracker(object):
         return self._workflow
 
 
-    def job_completed(self, job_id=None):
+    @retry(retry_on_result=retry_if_result_none, \
+                wait_random_min=wait_random_min, \
+                wait_random_max=wait_random_max, \
+                stop_max_delay=None)  # make sure the call success
+    def update_job_state(self, job_id=None):
         # will first check whether all tasks for this job are all completed
         # if yes, move the job to completed state
-        pass
 
-
-    def job_failed(self, job_id=None):
-        # will first check whether all tasks for this job are stopped, at least one of them is in failed state
+        # will first check whether no task is running, at least one of them is in failed state
         # if yes, move the job to failed state
-        pass
+        try:
+            self._sync_local_git_with_server()
+            job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING, job_id)  # the job must be in RUNNING state
+
+            queued_task_files = glob.glob(os.path.join(job_path, TASK_STATE.QUEUED, 'task.*', 'task.*.json'))
+
+            task_states = set()
+            task_files = glob.glob(os.path.join(job_path, '*/*/*/task.*.json'))
+            for t in task_files:
+                task_states.add(t.split(os.path.sep)[-4])   # this is task_state
+
+            # we can add more check here, for example, making sure no task json is missing
+            if not queued_task_files and task_states == set([TASK_STATE.COMPLETED]):
+                self._git_cmd(['mv', job_path, os.path.join(self.gitracker_home, JOB_STATE.COMPLETED)])
+                # TODO: we can collect some runtime statistics etc here to add to job JSON file
+
+                self._git_cmd(['add', self.gitracker_home])  # stage the change
+                self._git_cmd(['commit', '-m', 'Job completed: %s' % job_id])
+
+            elif not TASK_STATE.RUNNING in task_states and TASK_STATE.FAILED in task_states:
+                self._git_cmd(['mv', job_path, os.path.join(self.gitracker_home, JOB_STATE.FAILED)])
+                # TODO: we can collect some runtime statistics etc here to add to job JSON file
+
+                self._git_cmd(['add', self.gitracker_home])  # stage the change
+                self._git_cmd(['commit', '-m', 'Job failed: %s' % job_id])
+
+            self._git_cmd(['push', '-q'])
+
+            return True
+        except Exception, e:
+            print e
+            return  # when that happen this function will be re-tried
 
 
     def next_job(self, worker=None):
         # always git pull first to synchronize with the remote
         # we may need to do Git hard reset when a job/task update already done by another worker
-        self._git_cmd(["checkout", "-q", "master"])
-        self._git_cmd(["reset", "--hard", "origin/master"])
-        self._git_cmd(["clean", "-qfdx"])
-        self._git_cmd(["pull", "-q"])
+        self._sync_local_git_with_server()
+
         # check queued jobs
         queued_job_path = os.path.join(self.gitracker_home, JOB_STATE.QUEUED)
         job_files = glob.glob(os.path.join(queued_job_path, 'job.*.json'))
@@ -114,10 +153,8 @@ class GiTracker(object):
 
     def next_task(self, worker=None, jtracker=None, timeout=None):
         # always git pull first to synchronize with the remote
-        self._git_cmd(["checkout", "-q", "master"])
-        self._git_cmd(["reset", "--hard", "origin/master"])
-        self._git_cmd(["clean", "-qfdx"])
-        self._git_cmd(["pull", "-q"])
+        self._sync_local_git_with_server()
+
         # check queued task in running jobs
         running_job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING)
 
@@ -162,10 +199,7 @@ class GiTracker(object):
         job_id = worker.task.job.job_id
 
         # always git pull first to synchronize with the remote
-        self._git_cmd(["checkout", "-q", "master"])
-        self._git_cmd(["reset", "--hard", "origin/master"])
-        self._git_cmd(["clean", "-qfdx"])
-        self._git_cmd(["pull", "-q"])
+        self._sync_local_git_with_server()
 
         # current task and job states must be both RUNNING
         task_state = TASK_STATE.RUNNING
@@ -299,3 +333,11 @@ class GiTracker(object):
                 return False
 
         return True
+
+
+    def _sync_local_git_with_server(self):
+        self._git_cmd(["checkout", "-q", "master"])
+        self._git_cmd(["reset", "--hard", "origin/master"])
+        self._git_cmd(["clean", "-qfdx"])
+        self._git_cmd(["pull", "-q"])
+

@@ -99,7 +99,7 @@ class JTracker(object):
         # after successfully call task_completed, it's possible the whole job is completed,
         # so always call job_completed on gitracker which will ensure job completes properly
         if ret:
-            self.gitracker.job_completed(job_id=worker.task.job.job_id)
+            self.gitracker.update_job_state(job_id=worker.task.job.job_id)
             return True
         else:
             return False
@@ -109,7 +109,7 @@ class JTracker(object):
         ret = self.gitracker.task_failed(worker)
 
         if ret:
-            self.gitracker.job_failed(job_id=worker.task.job.job_id)
+            self.gitracker.update_job_state(job_id=worker.task.job.job_id)
             return True
         else:
             return False
