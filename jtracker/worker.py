@@ -146,6 +146,8 @@ class Worker(object):
 
         if self.task.task_failed():
             self._task = None
+            self._cwd = self.workdir  # set cwd back to worker's workdir
+            os.chdir(self.cwd)
             return True
         else:
             return

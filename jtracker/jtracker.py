@@ -105,13 +105,9 @@ class JTracker(object):
             return False
 
 
-    def task_failed(self, worker=None, timeout=None):
-        ret = self.gitracker.task_failed(
-                                        task_name = worker.task.name,
-                                        worker_id = worker.worker_id,
-                                        job_id = worker.task.job.job_id,
-                                        timeout = timeout
-                                    )
+    def task_failed(self, worker=None):
+        ret = self.gitracker.task_failed(worker)
+
         if ret:
             self.gitracker.job_failed(job_id=worker.task.job.job_id)
             return True

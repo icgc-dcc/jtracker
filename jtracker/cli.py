@@ -3,7 +3,6 @@ import click
 from click import echo
 from .worker import Worker
 from .jtracker import JTracker
-from daemonocle.cli import DaemonCLI
 
 
 @click.group()
@@ -29,7 +28,6 @@ def status(ctx):
     pass
 
 
-#@main.command(cls=DaemonCLI, daemon_params={'pidfile': 'jtracker.pid'})  # we could daemonize the worker
 @main.command()
 @click.pass_context
 def worker(ctx):

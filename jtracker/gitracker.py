@@ -60,6 +60,12 @@ class GiTracker(object):
         pass
 
 
+    def job_failed(self, job_id=None):
+        # will first check whether all tasks for this job are stopped, at least one of them is in failed state
+        # if yes, move the job to failed state
+        pass
+
+
     def next_job(self, worker=None):
         # always git pull first to synchronize with the remote
         # we may need to do Git hard reset when a job/task update already done by another worker
@@ -142,7 +148,15 @@ class GiTracker(object):
                         return task
 
 
-    def task_completed(self, worker=None): # task_name, worker_id, job_id, timeout):
+    def task_completed(self, worker=None):
+        return self.task_ended(worker=worker, move_to=TASK_STATE.COMPLETED)
+
+
+    def task_failed(self, worker=None):
+        return self.task_ended(worker=worker, move_to=TASK_STATE.FAILED)
+
+
+    def task_ended(self, worker=None, move_to=None):
         task_name = worker.task.name
         worker_id = worker.worker_id
         job_id = worker.task.job.job_id
@@ -180,6 +194,7 @@ class GiTracker(object):
             output_dict = {}
 
         output_dict['worker_id'] = worker.worker_id  # record worker_id
+        output_dict['task_state'] = move_to.split('.')[-1]
 
         task_dict = worker.task.task_dict
         if not task_dict.get('output'):
@@ -195,16 +210,12 @@ class GiTracker(object):
                             self.gitracker_home,
                             job_state,
                             job_id,
-                            TASK_STATE.COMPLETED,
+                            move_to,
                             worker_id
                         )
         if not os.path.isdir(target_path): os.makedirs(target_path)
 
         return self._move_task(source_path=source_path, target_path=target_path)
-
-
-    def task_failed(self, task_name, worker_id, job_id, timeout):
-        pass
 
 
     def _move_task(self, source_path=None, target_path=None):
