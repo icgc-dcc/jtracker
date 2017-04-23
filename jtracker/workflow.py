@@ -1,4 +1,5 @@
 import yaml
+import json
 
 class Workflow(object):
     def __init__(self, workflow_yaml_file=None):
@@ -9,6 +10,8 @@ class Workflow(object):
         self._version = self.workflow_dict.get('workflow').get('version')
 
         self._get_workflow_calls()
+        print json.dumps(self.workflow_calls)  # debug
+
         self._add_default_runtime_to_tasks()
 
 
@@ -34,6 +37,46 @@ class Workflow(object):
 
     def _get_workflow_calls(self):
         calls = self.workflow_dict.get('workflow', {}).get('calls', {})
+
+        # converting sub_calls under scatter calls to top level, this way
+        # it's easier to just handle flattened one level calls, at runtime
+        # sub_calls will be instantiated with multiple parallel calls with
+        # previously defined interations (ie, field defined in 'with_items')
+        scatter_calls = []
+        sub_calls = {}
+        for c in calls:
+            if calls[c].get('scatter'): # this is a scatter call
+                scatter_input = calls[c].get('scatter', {}).get('input', {})
+
+                # quick way to verify the syntax is correct, more thorough validation is needed
+                # it's possible to support two level of nested scatter calls,
+                # for now one level only
+                if not len(scatter_input) == 1 and 'with_items' in scatter_input:
+                    print "Workflow definition error: invalid scatter call definition in '%s'" % c
+                    raise  # better exception handle is needed
+
+                scatter_calls.append(c)
+                # expose sub calls in scatter call to top level
+                for sc in calls[c].get('calls', {}):
+                    if sub_calls.get(sc):
+                        print "Workflow definition error: call name duplication detected '%s'" % sc
+                        raise
+
+                    sub_calls[sc] = calls[c]['calls'][sc]
+                    sub_calls[sc]['scatter'] = calls[c]['scatter']  # assign scatter definition to under each sub call
+                    sub_calls[sc]['scatter']['name'] = c  # add name of the scatter call here
+
+        # now delete the top level scatter calls
+        for sc in scatter_calls:
+            calls.pop(sc)
+
+        # merge sub_calls into top level calls
+        duplicated_calls = set(calls).intersection(set(sub_calls))
+        if duplicated_calls:
+            print "Workflow definition error: call name duplication detected '%s'" % ', '.join(duplicated_calls)
+            raise
+
+        calls.update(sub_calls)
 
         for c in calls:
             task_called = calls[c].get('task')

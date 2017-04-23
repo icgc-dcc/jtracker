@@ -276,7 +276,7 @@ class GiTracker(object):
         call_input = self.workflow.workflow_calls[task_name].get('input')
 
         for i in call_input:
-            if '.' in call_input[i]:
+            if '@' in call_input[i] or '.' in call_input[i]:
                 value = '{%s}' % call_input[i]
             else:
                 value = job_dict.get(call_input[i])
@@ -304,7 +304,7 @@ class GiTracker(object):
             worker_id_pattern = 'worker.*.host.%s.*' % host_id
 
         for d in depends_on:
-            parent_task, parent_state = d.split('@')
+            parent_state, parent_task, execution_constraint = (d.split('@') + [None] * 3)[:3]
             path_to_parent_task_file = os.path.join(
                                                     self.gitracker_home,
                                                     JOB_STATE.RUNNING,
