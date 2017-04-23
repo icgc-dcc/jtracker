@@ -68,11 +68,6 @@ class GiTracker(object):
                 wait_random_max=wait_random_max, \
                 stop_max_delay=None)  # make sure the call success
     def update_job_state(self, job_id=None):
-        # will first check whether all tasks for this job are all completed
-        # if yes, move the job to completed state
-
-        # will first check whether no task is running, at least one of them is in failed state
-        # if yes, move the job to failed state
         try:
             self._sync_local_git_with_server()
             job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING, job_id)  # the job must be in RUNNING state
@@ -80,10 +75,12 @@ class GiTracker(object):
             queued_task_files = glob.glob(os.path.join(job_path, TASK_STATE.QUEUED, 'task.*', 'task.*.json'))
 
             task_states = set()
-            task_files = glob.glob(os.path.join(job_path, '*/*/*/task.*.json'))
+            task_files = glob.glob(os.path.join(job_path, '*', 'worker.*', 'task.*', 'task.*.json'))  # this includes all non-queued tasks
             for t in task_files:
                 task_states.add(t.split(os.path.sep)[-4])   # this is task_state
 
+            # check whether all tasks for this job are all completed
+            # if yes, move the job to completed state
             # we can add more check here, for example, making sure no task json is missing
             if not queued_task_files and task_states == set([TASK_STATE.COMPLETED]):
                 self._git_cmd(['mv', job_path, os.path.join(self.gitracker_home, JOB_STATE.COMPLETED)])
@@ -91,19 +88,22 @@ class GiTracker(object):
 
                 self._git_cmd(['add', self.gitracker_home])  # stage the change
                 self._git_cmd(['commit', '-m', 'Job completed: %s' % job_id])
+                self._git_cmd(['push', '-q'])
 
+            # check whether no task is running, at least one of them is in failed state
+            # if yes, move the job to failed state
+            # it is VERY IMPORTANT to not move the job if there is still running task, otherwise those task will fail miserably or even run into infinite loop
             elif not TASK_STATE.RUNNING in task_states and TASK_STATE.FAILED in task_states:
                 self._git_cmd(['mv', job_path, os.path.join(self.gitracker_home, JOB_STATE.FAILED)])
                 # TODO: we can collect some runtime statistics etc here to add to job JSON file
 
                 self._git_cmd(['add', self.gitracker_home])  # stage the change
                 self._git_cmd(['commit', '-m', 'Job failed: %s' % job_id])
-
-            self._git_cmd(['push', '-q'])
+                self._git_cmd(['push', '-q'])
 
             return True
-        except Exception, e:
-            print e
+        except Exception, e:  # except raised likely due to other worker picked made task state change, in such case, we will retry but not try forever
+            # print e  # debug
             return  # when that happen this function will be re-tried
 
 
@@ -115,7 +115,6 @@ class GiTracker(object):
         # check queued jobs
         queued_job_path = os.path.join(self.gitracker_home, JOB_STATE.QUEUED)
         job_files = glob.glob(os.path.join(queued_job_path, 'job.*.json'))
-
         if job_files:
             job_file = os.path.basename(job_files[0])
             job_id = re.sub(r'\.json$', '', job_file)
@@ -161,10 +160,7 @@ class GiTracker(object):
         for root, dirs, files in os.walk(running_job_path):
             if root.endswith(TASK_STATE.QUEUED):
                 for task_name in dirs:
-                    # TODO: check whether this t is ready to run by looking into its depends_on task(s)
-                    #       for now, choose this first t
-
-                    job_id = root.split('/')[-2]
+                    job_id = root.split(os.path.sep)[-2]
 
                     if not self._check_task_dependency(worker=worker, task_name=task_name, job_id=job_id): continue
 
@@ -172,9 +168,6 @@ class GiTracker(object):
                     if not os.path.isdir(running_worker_path): os.makedirs(running_worker_path)
 
                     if self._move_task(os.path.join(root, task_name), running_worker_path):
-                        # succeeded
-                        # TODO: consider move object creation to jtracker instead of here, just
-                        #       need to return needed information to create Task and Job instances
                         task = Task(name=task_name, job=Job(
                                                                 job_id = job_id,
                                                                 state = JOB_STATE.RUNNING,
