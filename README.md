@@ -25,6 +25,10 @@ jt
 
 Follow this example to develop your workflow: https://github.com/icgc-dcc/ega-file-transfer-to-collab
 
+Quick note on workflow development and testing:
+1. You can have workflow definition and workflow execution in one single Git repo, although separating them in dedicated Git repos is recommended for production use. Here is an example: https://github.com/icgc-dcc/jtracker-example-workflows/tree/master/test.0.0.0.jtracker, note that job states folders and worflow folder are in one repo.
+2. It is recommended to use a local Git server for development and testing. Follow this instruction to set up a local git server on a mac: http://www.tomdalling.com/blog/software-processes/how-to-set-up-a-secure-git-server-at-home-osx/. Once set up, you can access it same way as you access github. In my case, `git clone junjun@localhost:/Users/junjun/mygit/jtracker-demo-workflows.git`
+
 
 ## Create a Git repository to manage workflow execution
 
