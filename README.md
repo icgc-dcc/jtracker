@@ -1,6 +1,6 @@
 # JTracker
 
-JTracker is a workflow management and execution engine backed on Git repository.
+JTracker is a Git repository based solution for workflow management and execution.
 
 ## Installation
 
