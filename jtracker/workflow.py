@@ -10,7 +10,7 @@ class Workflow(object):
         self._version = self.workflow_dict.get('workflow').get('version')
 
         self._get_workflow_calls()
-        print json.dumps(self.workflow_calls)  # debug
+        #print json.dumps(self.workflow_calls)  # debug
 
         self._add_default_runtime_to_tasks()
 
@@ -45,6 +45,9 @@ class Workflow(object):
         scatter_calls = []
         sub_calls = {}
         for c in calls:
+            if '.' in c or '@' in c:
+                print "Workflow definition error: call name canot contain '.' or '@', offending name: '%s'" % c
+                raise
             if calls[c].get('scatter'): # this is a scatter call
                 scatter_input = calls[c].get('scatter', {}).get('input', {})
 
@@ -58,6 +61,9 @@ class Workflow(object):
                 scatter_calls.append(c)
                 # expose sub calls in scatter call to top level
                 for sc in calls[c].get('calls', {}):
+                    if '.' in c or '@' in sc:
+                        print "Workflow definition error: call name canot contain '.' or '@', offending name: '%s'" % sc
+                        raise
                     if sub_calls.get(sc):
                         print "Workflow definition error: call name duplication detected '%s'" % sc
                         raise
