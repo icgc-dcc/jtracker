@@ -8,9 +8,9 @@ from .utils import retry_if_result_none
 
 
 # we will allow this to be set by the client in a config file of some sort
-wait_random_min = 100    #   1 sec
-wait_random_max = 1000   #  10 sec
-stop_max_delay = None #6000   #  60 sec, None will never stop
+wait_random_min = 1000   #  1 sec
+wait_random_max = 6000   #  6 sec
+stop_max_delay = None  #60000   #  60 sec, None will never stop
 
 
 class Worker(object):

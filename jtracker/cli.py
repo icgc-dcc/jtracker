@@ -45,9 +45,9 @@ def worker(ctx):
     echo('Worker ID: %s' % worker.worker_id)
 
     while worker.next_task():
-        echo('[%s] Start run task: %s in job: %s' % (datetime.datetime.utcnow().isoformat(), worker.task.name, worker.task.job.job_id))
+        echo('[%s] Task started: %s in job: %s' % (datetime.datetime.utcnow().isoformat(), worker.task.name, worker.task.job.job_id))
         if worker.run():
-            echo('[%s] Completed task: %s in job: %s' % (datetime.datetime.utcnow().isoformat(), worker.task.name, worker.task.job.job_id))
+            echo('[%s] Task completed: %s in job: %s' % (datetime.datetime.utcnow().isoformat(), worker.task.name, worker.task.job.job_id))
             worker.task_completed()
         else:
             echo('[%s] Task failed: %s in job: %s' % (datetime.datetime.utcnow().isoformat(), worker.task.name, worker.task.job.job_id))
