@@ -135,14 +135,103 @@ class GiTracker(object):
 
                 # TODO: create task folders under new_job_path/TASK_STATE.QUEUED
                 if t_state == TASK_STATE.QUEUED:
-                    for stp in self.workflow.workflow_calls:  # workflow calls defined to call tasks
-                        task_folder = os.path.join(t_path, 'task.%s' % stp)
-                        os.makedirs(task_folder)  # create the task folder
+                    for call_name in self.workflow.workflow_calls:  # workflow calls defined to call tasks
 
-                        # new create task JSON file under task_folder
-                        task_dict = self._job_dict2task_dict(task_name=stp, job_dict=job_dict)
-                        with open(os.path.join(task_folder, 'task.%s.json' % stp), 'w') as f:
-                            f.write(json.dumps(task_dict))
+                        call_input = self.workflow.workflow_calls[call_name].get('input')
+
+                        called_task = self.workflow.workflow_calls[call_name].get('task')
+                        depends_on = self.workflow.workflow_calls[call_name].get('depends_on')
+                        task_dict = {
+                            'call': call_name,
+                            'input': {},
+                            'task': called_task,
+                            'depends_on': depends_on,
+                            'command': self.workflow.workflow_dict.get('tasks').get(called_task).get('command'),
+                            'runtime': self.workflow.workflow_dict.get('tasks').get(called_task).get('runtime')
+                        }
+
+                        # need to find out whether this is a task with scatter call
+                        scatter_setting = self.workflow.workflow_calls[call_name].get('scatter')
+                        if scatter_setting:
+                            # TODO: if bad things happen here due to error in workflow definition or input Job JSON
+                            #       we will need to be able to move the relevant Job JSON to failed folder
+                            scatter_call_name = scatter_setting.get('name')
+                            input_variable = scatter_setting.get('input').keys()[0]  # must always have one key (at least for now), will do error checking later
+                            task_suffix_field = scatter_setting.get('input').get(input_variable).get('task_suffix')
+                            if not task_suffix_field: task_suffix_field = input_variable
+
+                            with_items_field = scatter_setting.get('input').get(input_variable).get('with_items')
+
+                            # the with_items_field must be in the original job JSON, at least for now
+                            if not job_dict.get(with_items_field):
+                                # TODO: move the job to failed folder with clear error message
+                                pass
+                            else:
+                                for item in job_dict.get(with_items_field):
+                                    task_suffix = None
+                                    if isinstance(item, dict):
+                                        suffix_fields = task_suffix_field.split('.')
+                                        if len(suffix_fields) != 2 or suffix_fields[0] != input_variable:
+                                            # TODO: error in scatter call definition, move the job to failed
+                                            # folder with clear error message
+                                            pass
+                                        else:
+                                            task_suffix = item.get(suffix_fields[1])
+
+                                    elif isinstance(item, str) or isinstance(item, int):
+                                        task_suffix = str(item)
+
+                                    else:
+                                        # TODO: move the job to failed folder with clear error message
+                                        pass
+
+                                    task_folder = os.path.join(t_path, 'task.%s.%s' % (call_name, task_suffix))  # one of the scattered tasks
+                                    os.makedirs(task_folder)  # create the task folder
+
+                                    original_depends_on = task_dict['depends_on']
+                                    if original_depends_on:
+                                        updated_depends_on = []
+                                        for parent_call in original_depends_on:
+                                            parts = parent_call.split('@')
+                                            parts[1] = '%s.%s' % (parts[1], task_suffix)
+                                            updated_depends_on.append('@'.join(parts))
+
+                                        task_dict['depends_on'] = updated_depends_on
+
+                                    for i in call_input:
+                                        if '@' in call_input[i]:
+                                            value = '{{%s.%s}}' % (call_input[i], task_suffix)
+                                        elif len(call_input[i].split('.')) == 2:
+                                            if call_input[i].split('.')[0] == input_variable:
+                                                value = item.get(call_input[i].split('.')[1])
+                                            else:
+                                                value = job_dict.get(call_input[i].split('.')[0]).get(call_input[i].split('.')[1])
+                                        else:
+                                            value = job_dict.get(call_input[i])
+
+                                        task_dict['input'][i] = value
+
+                                    with open(os.path.join(task_folder, 'task.%s.%s.json' % (call_name, task_suffix)), 'w') as f:
+                                        f.write(json.dumps(task_dict))
+
+                                    # reset for the next iteration
+                                    task_dict['input'] = {}
+                                    task_dict['depends_on'] = depends_on
+
+                        else:
+                            task_folder = os.path.join(t_path, 'task.%s' % call_name)
+                            os.makedirs(task_folder)  # create the task folder
+
+                            for i in call_input:
+                                if '@' in call_input[i]:
+                                    value = '{{%s}}' % call_input[i]
+                                else:
+                                    value = job_dict.get(call_input[i])
+
+                                task_dict['input'][i] = value
+
+                            with open(os.path.join(task_folder, 'task.%s.json' % call_name), 'w') as f:
+                                f.write(json.dumps(task_dict))
 
             self._git_cmd(['add', self.gitracker_home])  # stage the change
             self._git_cmd(['commit', '-m', 'Started new job %s' % job_id])
@@ -162,7 +251,11 @@ class GiTracker(object):
                 for task_name in dirs:
                     job_id = root.split(os.path.sep)[-2]
 
-                    if not self._check_task_dependency(worker=worker, task_name=task_name, job_id=job_id): continue
+                    task_json = os.path.join(root, task_name, '%s.json' % task_name)
+                    with open(task_json, 'r') as f:
+                        task_dict = json.loads(f.read())
+
+                    if not self._check_task_dependency(worker=worker, task_dict=task_dict, job_id=job_id): continue
 
                     running_worker_path = os.path.join(root.replace(TASK_STATE.QUEUED, TASK_STATE.RUNNING), worker.worker_id)
                     if not os.path.isdir(running_worker_path): os.makedirs(running_worker_path)
@@ -265,33 +358,11 @@ class GiTracker(object):
         os.chdir(origWD)
 
 
-    def _job_dict2task_dict(self, task_name=None, job_dict={}):
-        called_task = self.workflow.workflow_calls[task_name].get('task')
-        task_dict = {
-            'input': {},
-            'command': self.workflow.workflow_dict.get('tasks').get(called_task).get('command'),
-            'runtime': self.workflow.workflow_dict.get('tasks').get(called_task).get('runtime')
-        }
-
-        call_input = self.workflow.workflow_calls[task_name].get('input')
-
-        for i in call_input:
-            if '.' in call_input[i]:
-                value = '{%s}' % call_input[i]
-            else:
-                value = job_dict.get(call_input[i])
-
-            task_dict['input'][i] = value
-
-        return task_dict
-
-
-    def _check_task_dependency(self, worker=None, task_name=None, job_id=None):
+    def _check_task_dependency(self, worker=None, task_dict=None, job_id=None):
         worker_id = worker.worker_id
         host_id = worker.host_id
-        task_name = re.sub(r'^task\.', '', task_name)
 
-        depends_on = self.workflow.workflow_calls.get(task_name).get('depends_on')
+        depends_on = task_dict.get('depends_on')
         if not depends_on: return True
 
         # constraint can be 'same_host', 'same_worker', 'shared_fs' or None
@@ -303,26 +374,36 @@ class GiTracker(object):
         elif constraint and constraint == 'same_host':
             worker_id_pattern = 'worker.*.host.%s.*' % host_id
 
+        # we will need better implementation, consider covering 'failed' parent task as well
+        # right now it only check whether parent task state is COMPLETED
         for d in depends_on:
-            parent_task, parent_state = d.split('@')
-            path_to_parent_task_file = os.path.join(
+            parent_state, parent_task, execution_constraint = (d.split('@') + [None] * 3)[:3]
+            path_to_parent_task_file1 = os.path.join(
                                                     self.gitracker_home,
                                                     JOB_STATE.RUNNING,
                                                     job_id,
-                                                    'task_state.%s' % parent_state,
+                                                    'task_state.*',
                                                     worker_id_pattern,
                                                     'task.%s' % parent_task,
                                                     'task.%s.json' % parent_task
                                                 )
 
-            if not glob.glob(path_to_parent_task_file):
-                # TODO: to be safe, it's neccessary to tag the parent task file, maybe by registering
-                #       the worker and next step in the parent task file, this will make this file update
-                #       part of the transaction, if the commit and push step (final step) succeed, it's safe
-                #       to proceed because the parent task file is still in previous checked state. Without
-                #       this tagging, a locally checked parent task file might get updated / moved by other
-                #       worker, so it's not safe to ensure the dependent task stayed the same state as when
-                #       it's checked
+            path_to_parent_task_file2 = os.path.join(
+                                                    self.gitracker_home,
+                                                    JOB_STATE.RUNNING,
+                                                    job_id,
+                                                    'task_state.*',
+                                                    worker_id_pattern,
+                                                    'task.%s.*' % parent_task,
+                                                    'task.%s.*.json' % parent_task
+                                                )
+
+            parent_task_files = glob.glob(path_to_parent_task_file1) + glob.glob(path_to_parent_task_file2)
+            parent_task_states = set()
+            for pt in parent_task_files:
+                parent_task_states.add(str(pt).split(os.path.sep)[-4])
+
+            if parent_task_states - set([TASK_STATE.COMPLETED]):  # there are other state than 'completed'
                 return False
 
         return True
