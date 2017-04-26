@@ -403,7 +403,7 @@ class GiTracker(object):
             for pt in parent_task_files:
                 parent_task_states.add(str(pt).split(os.path.sep)[-4])
 
-            if parent_task_states - set([TASK_STATE.COMPLETED]):  # there are other state than 'completed'
+            if parent_task_states and parent_task_states - set([TASK_STATE.COMPLETED]):  # there are other state than 'completed'
                 return False
 
         return True
