@@ -369,10 +369,13 @@ class GiTracker(object):
         constraint = self.workflow.workflow_dict.get('workflow',{}).get('execution',{}).get('constraint')
 
         worker_id_pattern = 'worker.*'
+        """
+        ## to be implemented properly, for now every worker can run a task
         if constraint and constraint == 'same_worker':
             worker_id_pattern = worker_id
-        elif constraint and constraint == 'same_host':
+        elif constraint and constraint == 'same_host':  # more work is needed to handle tasks do not have dependencies, they will run without checking host
             worker_id_pattern = 'worker.*.host.%s.*' % host_id
+        """
 
         # we will need better implementation, consider covering 'failed' parent task as well
         # right now it only check whether parent task state is COMPLETED
