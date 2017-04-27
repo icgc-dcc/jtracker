@@ -216,7 +216,7 @@ class GiTracker(object):
                                         task_dict['input'][i] = value
 
                                     with open(os.path.join(task_folder, 'task.%s.%s.json' % (call_name, task_suffix)), 'w') as f:
-                                        f.write(json.dumps(task_dict))
+                                        f.write(json.dumps(task_dict, indent=2))
 
                                     # reset for the next iteration
                                     task_dict['input'] = {}
@@ -240,7 +240,7 @@ class GiTracker(object):
                                 task_dict['input'][i] = value
 
                             with open(os.path.join(task_folder, 'task.%s.json' % call_name), 'w') as f:
-                                f.write(json.dumps(task_dict))
+                                f.write(json.dumps(task_dict, indent=2))
 
             self._git_cmd(['add', self.gitracker_home])  # stage the change
             self._git_cmd(['commit', '-m', 'Started new job %s' % job_id])
