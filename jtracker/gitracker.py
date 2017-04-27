@@ -167,6 +167,7 @@ class GiTracker(object):
                                 # TODO: move the job to failed folder with clear error message
                                 pass
                             else:
+                                task_suffix_set = set([])
                                 for item in job_dict.get(with_items_field):
                                     task_suffix = None
                                     if isinstance(item, dict):
@@ -184,6 +185,9 @@ class GiTracker(object):
                                     else:
                                         # TODO: move the job to failed folder with clear error message
                                         pass
+
+                                    task_suffix = re.sub('[^0-9a-zA-Z]+', '_', task_suffix)  # need to avoid special character
+                                    task_suffix_set.add(task_suffix)
 
                                     task_folder = os.path.join(t_path, 'task.%s.%s' % (call_name, task_suffix))  # one of the scattered tasks
                                     os.makedirs(task_folder)  # create the task folder
@@ -217,6 +221,11 @@ class GiTracker(object):
                                     # reset for the next iteration
                                     task_dict['input'] = {}
                                     task_dict['depends_on'] = depends_on
+
+                                if len(task_suffix_set) < len(job_dict.get(with_items_field)):
+                                    # duplicated task suffix detected
+                                    # TODO: move the job to failed folder with clear error message
+                                    pass
 
                         else:
                             task_folder = os.path.join(t_path, 'task.%s' % call_name)
