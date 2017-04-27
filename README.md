@@ -13,9 +13,13 @@ curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | pyt
 # clone the source code
 git clone git@github.com:icgc-dcc/jtracker.git
 
-# install jtracker
+# install jtracker from source
 cd jtracker
 pipsi install .
+
+# or install from PyPI for latest release
+pipsi install jtracker
+
 
 # run it
 jt
