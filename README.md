@@ -10,6 +10,9 @@ JTracker needs to be installed on a workflow task execution host. It may be a VM
 # install pipsi first
 curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
 
+# modify PATH to find pipsi, you may want to add this to the '.bashrc' file
+export PATH="~/.local/bin:$PATH"
+
 # clone the source code
 git clone git@github.com:icgc-dcc/jtracker.git
 
@@ -19,7 +22,6 @@ pipsi install .
 
 # or install from PyPI for latest release
 pipsi install jtracker
-
 
 # run it
 jt
@@ -46,7 +48,7 @@ At this time, you will need to set up this Git repository on your own manually. 
 On a task execution host, you can start a worker as follow assuming workflow definition and job json files exist as specified.
 
 ```
-jt -g 'git@github.com:icgc-dcc/jtracker-example-workflows' -n ega-file-transfer-to-collab -w 0.3.0 worker
+jt -g 'git@github.com:icgc-dcc/jtracker-example-workflows' -w test -r 0.1.0 worker
 ```
 
 You can start multiple workers on the same host if there is enough computating resource. You can also start workers in different hosts at the same time. Workflow jobs/tasks will be picked up by individual workers as needed.
