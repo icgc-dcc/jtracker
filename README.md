@@ -32,7 +32,7 @@ Quick note on workflow development and testing:
 
 ## Create a Git repository to manage workflow execution
 
-Here is an example: https://github.com/icgc-dcc/jtracker-example-workflows/tree/master/ega-file-transfer-to-collab.0.3.0.jtracker
+Here is an example: https://github.com/icgc-dcc/jtracker-example-workflows/tree/master/test.0.1.0.jtracker
 
 At this time, you will need to set up this Git repository on your own manually. In the near future, 'jt' cli tool will be able to set it up automatically for you. 
 
