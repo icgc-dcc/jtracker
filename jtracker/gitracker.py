@@ -324,7 +324,7 @@ class GiTracker(object):
 
         # write back to task_json file
         with open(os.path.join(source_path, '%s.json' % task_name), 'w') as f:
-            f.write(json.dumps(task_dict))
+            f.write(json.dumps(task_dict, indent=2))
 
         target_path = os.path.join(
                             self.gitracker_home,
