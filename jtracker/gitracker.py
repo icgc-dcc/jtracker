@@ -135,27 +135,27 @@ class GiTracker(object):
 
                 # TODO: create task folders under new_job_path/TASK_STATE.QUEUED
                 if t_state == TASK_STATE.QUEUED:
-                    for call_name in self.workflow.workflow_calls:  # workflow calls defined to call tasks
+                    for task_name in self.workflow.workflow_tasks:  # workflow tasks defined to call tools
 
-                        call_input = self.workflow.workflow_calls[call_name].get('input')
+                        call_input = self.workflow.workflow_tasks[task_name].get('input')
 
-                        called_task = self.workflow.workflow_calls[call_name].get('task')
-                        depends_on = self.workflow.workflow_calls[call_name].get('depends_on')
+                        called_tool = self.workflow.workflow_tasks[task_name].get('tool')
+                        depends_on = self.workflow.workflow_tasks[task_name].get('depends_on')
                         task_dict = {
-                            'call': call_name,
+                            'task': task_name,
                             'input': {},
-                            'task': called_task,
+                            'tool': called_tool,
                             'depends_on': depends_on,
-                            'command': self.workflow.workflow_dict.get('tasks').get(called_task).get('command'),
-                            'runtime': self.workflow.workflow_dict.get('tasks').get(called_task).get('runtime')
+                            'command': self.workflow.workflow_dict.get('tools').get(called_tool).get('command'),
+                            'runtime': self.workflow.workflow_dict.get('tools').get(called_tool).get('runtime')
                         }
 
                         # need to find out whether this is a task with scatter call
-                        scatter_setting = self.workflow.workflow_calls[call_name].get('scatter')
+                        scatter_setting = self.workflow.workflow_tasks[task_name].get('scatter')
                         if scatter_setting:
                             # TODO: if bad things happen here due to error in workflow definition or input Job JSON
                             #       we will need to be able to move the relevant Job JSON to failed folder
-                            scatter_call_name = scatter_setting.get('name')
+                            scatter_task_name = scatter_setting.get('name')
                             input_variable = scatter_setting.get('input').keys()[0]  # must always have one key (at least for now), will do error checking later
                             task_suffix_field = scatter_setting.get('input').get(input_variable).get('task_suffix')
                             if not task_suffix_field: task_suffix_field = input_variable
@@ -189,10 +189,14 @@ class GiTracker(object):
                                     task_suffix = re.sub('[^0-9a-zA-Z]+', '_', task_suffix)  # need to avoid special character
                                     task_suffix_set.add(task_suffix)
 
-                                    task_folder = os.path.join(t_path, 'task.%s.%s' % (call_name, task_suffix))  # one of the scattered tasks
+                                    task_folder = os.path.join(t_path, 'task.%s.%s' % (task_name, task_suffix))  # one of the scattered tasks
                                     os.makedirs(task_folder)  # create the task folder
 
                                     original_depends_on = task_dict['depends_on']
+                                    if original_depends_on and not isinstance(original_depends_on, list):
+                                        # TODO: move the job to failed folder with clear error message that depends_on setting invalid
+                                        pass
+
                                     if original_depends_on:
                                         updated_depends_on = []
                                         for parent_call in original_depends_on:
@@ -215,7 +219,7 @@ class GiTracker(object):
 
                                         task_dict['input'][i] = value
 
-                                    with open(os.path.join(task_folder, 'task.%s.%s.json' % (call_name, task_suffix)), 'w') as f:
+                                    with open(os.path.join(task_folder, 'task.%s.%s.json' % (task_name, task_suffix)), 'w') as f:
                                         f.write(json.dumps(task_dict, indent=2))
 
                                     # reset for the next iteration
@@ -228,7 +232,7 @@ class GiTracker(object):
                                     pass
 
                         else:
-                            task_folder = os.path.join(t_path, 'task.%s' % call_name)
+                            task_folder = os.path.join(t_path, 'task.%s' % task_name)
                             os.makedirs(task_folder)  # create the task folder
 
                             for i in call_input:
@@ -239,7 +243,7 @@ class GiTracker(object):
 
                                 task_dict['input'][i] = value
 
-                            with open(os.path.join(task_folder, 'task.%s.json' % call_name), 'w') as f:
+                            with open(os.path.join(task_folder, 'task.%s.json' % task_name), 'w') as f:
                                 f.write(json.dumps(task_dict, indent=2))
 
             self._git_cmd(['add', self.gitracker_home])  # stage the change
