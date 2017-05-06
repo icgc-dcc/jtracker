@@ -9,10 +9,11 @@ class Workflow(object):
         self._name = self.workflow_dict.get('workflow').get('name')
         self._version = self.workflow_dict.get('workflow').get('version')
 
-        self._get_workflow_calls()
-        #print json.dumps(self.workflow_calls)  # debug
+        self._get_workflow_tasks()
 
-        self._add_default_runtime_to_tasks()
+        self._add_default_runtime_to_tools()
+        self._update_dependency()
+        #print json.dumps(self.workflow_tasks, indent=2)  # debug
 
 
     @property
@@ -31,68 +32,92 @@ class Workflow(object):
 
 
     @property
-    def workflow_calls(self):
-        return self._workflow_calls
+    def workflow_tasks(self):
+        return self._workflow_tasks
 
 
-    def _get_workflow_calls(self):
-        calls = self.workflow_dict.get('workflow', {}).get('calls', {})
+    def _get_workflow_tasks(self):
+        tasks = self.workflow_dict.get('workflow', {}).get('tasks', {})
 
-        # converting sub_calls under scatter calls to top level, this way
-        # it's easier to just handle flattened one level calls, at runtime
-        # sub_calls will be instantiated with multiple parallel calls with
+        # converting sub_tasks under scatter tasks to top level, this way
+        # it's easier to just handle flattened one level tasks, at runtime
+        # sub_tasks will be instantiated with multiple parallel tasks with
         # previously defined interations (ie, field defined in 'with_items')
-        scatter_calls = []
-        sub_calls = {}
-        for c in calls:
-            if '.' in c or '@' in c:
-                print "Workflow definition error: call name canot contain '.' or '@', offending name: '%s'" % c
+        scatter_tasks = []
+        sub_tasks = {}
+        for t in tasks:
+            if '.' in t or '@' in t:
+                print "Workflow definition error: task name canot contain '.' or '@', offending name: '%s'" % t
                 raise
-            if calls[c].get('scatter'): # this is a scatter call
-                scatter_input = calls[c].get('scatter', {}).get('input', {})
+            if tasks[t].get('scatter'): # this is a scatter task
+                scatter_input = tasks[t].get('scatter', {}).get('input', {})
 
                 # quick way to verify the syntax is correct, more thorough validation is needed
-                # it's possible to support two level of nested scatter calls,
+                # it's possible to support two level of nested scatter tasks,
                 # for now one level only
                 if not len(scatter_input) == 1 and 'with_items' in scatter_input:
-                    print "Workflow definition error: invalid scatter call definition in '%s'" % c
+                    print "Workflow definition error: invalid scatter task definition in '%s'" % t
                     raise  # better exception handle is needed
 
-                scatter_calls.append(c)
-                # expose sub calls in scatter call to top level
-                for sc in calls[c].get('calls', {}):
-                    if '.' in c or '@' in sc:
-                        print "Workflow definition error: call name canot contain '.' or '@', offending name: '%s'" % sc
+                scatter_tasks.append(t)
+                # expose sub tasks in scatter task to top level
+                for st in tasks[t].get('tasks', {}):
+                    if '.' in t or '@' in st:
+                        print "Workflow definition error: task name canot contain '.' or '@', offending name: '%s'" % st
                         raise
-                    if sub_calls.get(sc):
-                        print "Workflow definition error: call name duplication detected '%s'" % sc
+                    if sub_tasks.get(st):
+                        print "Workflow definition error: task name duplication detected '%s'" % st
                         raise
 
-                    sub_calls[sc] = calls[c]['calls'][sc]
-                    sub_calls[sc]['scatter'] = calls[c]['scatter']  # assign scatter definition to under each sub call
-                    sub_calls[sc]['scatter']['name'] = c  # add name of the scatter call here
+                    sub_tasks[st] = tasks[t]['tasks'][st]
+                    sub_tasks[st]['scatter'] = tasks[t]['scatter']  # assign scatter definition to under each sub task
+                    sub_tasks[st]['scatter']['name'] = t  # add name of the scatter task here
 
-        # now delete the top level scatter calls
-        for sc in scatter_calls:
-            calls.pop(sc)
+        # now delete the top level scatter tasks
+        for st in scatter_tasks:
+            tasks.pop(st)
 
-        # merge sub_calls into top level calls
-        duplicated_calls = set(calls).intersection(set(sub_calls))
-        if duplicated_calls:
-            print "Workflow definition error: call name duplication detected '%s'" % ', '.join(duplicated_calls)
+        # merge sub_tasks into top level tasks
+        duplicated_tasks = set(tasks).intersection(set(sub_tasks))
+        if duplicated_tasks:
+            print "Workflow definition error: task name duplication detected '%s'" % ', '.join(duplicated_tasks)
             raise
 
-        calls.update(sub_calls)
+        tasks.update(sub_tasks)
 
-        for c in calls:
-            task_called = calls[c].get('task')
-            if not task_called:
-                calls[c]['task'] = c
+        for t in tasks:
+            tool_tasked = tasks[t].get('tool')
+            if not tool_tasked:
+                tasks[t]['tool'] = t
 
-        self._workflow_calls = calls
+        self._workflow_tasks = tasks
 
 
-    def _add_default_runtime_to_tasks(self):
-        for t in self.workflow_dict.get('tasks', {}):
-            if not 'runtime' in t:  # no runtime defined in the task, add the default one
-                self.workflow_dict['tasks'][t]['runtime'] = self.workflow_dict.get('workflow', {}).get('runtime')
+    def _add_default_runtime_to_tools(self):
+        for t in self.workflow_dict.get('tools', {}):
+            if not 'runtime' in t:  # no runtime defined in the tool, add the default one
+                self.workflow_dict['tools'][t]['runtime'] = self.workflow_dict.get('workflow', {}).get('runtime')
+
+
+    def _update_dependency(self):
+        for task in self.workflow_tasks:
+            input_tasks = set([])
+
+            for input_key in self.workflow_tasks.get(task).get('input'):
+                input_ = self.workflow_tasks.get(task).get('input').get(input_key)
+                if len(input_.split('@')) == 2:
+                    input_tasks.add('completed@%s' % input_.split('@')[1])
+
+            existing_dependency = set([])
+            if self.workflow_tasks.get(task).get('depends_on'):
+                for parent_task in self.workflow_tasks.get(task).get('depends_on', []):
+                    existing_dependency.add('@'.join(parent_task.split('@')[:2]))
+
+            dependency_to_add = input_tasks - existing_dependency
+
+            if dependency_to_add:
+                if self.workflow_tasks.get(task).get('depends_on'):
+                    self.workflow_tasks.get(task)['depends_on'] += list(dependency_to_add)
+                else:
+                    self.workflow_tasks.get(task)['depends_on'] = list(dependency_to_add)
+

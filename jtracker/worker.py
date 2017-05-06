@@ -98,7 +98,7 @@ class Worker(object):
         # if current task not exists, return False
         if not self.task: return False
 
-        cmd = "PATH=%s:$PATH %s" % (os.path.join(self.jtracker.workflow_home, 'tasks'), self.task.task_dict.get('command'))
+        cmd = "PATH=%s:$PATH %s" % (os.path.join(self.jtracker.workflow_home, 'tools'), self.task.task_dict.get('command'))
         arg = "'%s'" % json.dumps(self.task.task_dict) if self.task.task_dict else ''
 
         try:
