@@ -10,9 +10,10 @@ class Workflow(object):
         self._version = self.workflow_dict.get('workflow').get('version')
 
         self._get_workflow_tasks()
-        #print json.dumps(self.workflow_tasks)  # debug
 
         self._add_default_runtime_to_tools()
+        self._update_dependency()
+        #print json.dumps(self.workflow_tasks, indent=2)  # debug
 
 
     @property
@@ -96,3 +97,27 @@ class Workflow(object):
         for t in self.workflow_dict.get('tools', {}):
             if not 'runtime' in t:  # no runtime defined in the tool, add the default one
                 self.workflow_dict['tools'][t]['runtime'] = self.workflow_dict.get('workflow', {}).get('runtime')
+
+
+    def _update_dependency(self):
+        for task in self.workflow_tasks:
+            input_tasks = set([])
+
+            for input_key in self.workflow_tasks.get(task).get('input'):
+                input_ = self.workflow_tasks.get(task).get('input').get(input_key)
+                if len(input_.split('@')) == 2:
+                    input_tasks.add('completed@%s' % input_.split('@')[1])
+
+            existing_dependency = set([])
+            if self.workflow_tasks.get(task).get('depends_on'):
+                for parent_task in self.workflow_tasks.get(task).get('depends_on', []):
+                    existing_dependency.add('@'.join(parent_task.split('@')[:2]))
+
+            dependency_to_add = input_tasks - existing_dependency
+
+            if dependency_to_add:
+                if self.workflow_tasks.get(task).get('depends_on'):
+                    self.workflow_tasks.get(task)['depends_on'] += list(dependency_to_add)
+                else:
+                    self.workflow_tasks.get(task)['depends_on'] = list(dependency_to_add)
+
