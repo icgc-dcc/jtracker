@@ -509,7 +509,7 @@ class GiTracker(object):
 
         if task_json_rewrite:
             with open(task_json, 'w') as f:
-                f.write(json.dumps(task_dict))
+                f.write(json.dumps(task_dict, indent=2))
 
         return True
 
