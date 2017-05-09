@@ -10,10 +10,12 @@ from .jtracker import JTracker
 @click.option('--git-repo-url', '-g', envvar='JT_GIT_URL', required=True)
 @click.option('--workflow-name', '-w', envvar='JT_WORKFLOW', required=True)
 @click.option('--workflow-version', '-r', envvar='JT_WKFL_VER', required=True)
+@click.option('--jt-home', '-j', envvar='JT_HOME', required=False)
 @click.pass_context
 def main(ctx, git_repo_url, workflow_name, workflow_version):
     # initializing ctx.obj
     ctx.obj = {}
+    ctx.obj['JT_HOME'] = jt_home
     ctx.obj['JT_GIT_URL'] = git_repo_url
     ctx.obj['JT_WORKFLOW'] = workflow_name
     ctx.obj['JT_WKFL_VER'] = workflow_version
@@ -36,6 +38,7 @@ def worker(ctx):
     Start worker.
     """
     jt = JTracker(
+                    jt_home = ctx.obj['JT_HOME'],
                     git_repo_url = ctx.obj['JT_GIT_URL'],
                     workflow_name = ctx.obj['JT_WORKFLOW'],
                     workflow_version = ctx.obj['JT_WKFL_VER']
