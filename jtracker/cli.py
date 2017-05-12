@@ -4,6 +4,14 @@ import click
 from click import echo
 from .worker import Worker
 from .jtracker import JTracker
+from . import __version__ as ver
+
+
+def print_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.echo('jtracker %s' % ver)
+    ctx.exit()
 
 
 @click.group()
@@ -11,6 +19,8 @@ from .jtracker import JTracker
 @click.option('--workflow-name', '-w', envvar='JT_WORKFLOW', required=True)
 @click.option('--workflow-version', '-r', envvar='JT_WKFL_VER', required=True)
 @click.option('--jt-home', '-j', envvar='JT_HOME', required=False)
+@click.option('--version', '-v', is_flag=True, callback=print_version,
+              expose_value=False, is_eager=True)
 @click.pass_context
 def main(ctx, git_repo_url, workflow_name, workflow_version, jt_home):
     # initializing ctx.obj
