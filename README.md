@@ -14,7 +14,7 @@ curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | pyt
 export PATH="~/.local/bin:$PATH"
 
 # clone the source code
-git clone git@github.com:icgc-dcc/jtracker.git
+git clone https://github.com/icgc-dcc/jtracker.git
 
 # install jtracker from source
 cd jtracker
