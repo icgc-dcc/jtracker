@@ -12,7 +12,7 @@ from .jtracker import JTracker
 @click.option('--workflow-version', '-r', envvar='JT_WKFL_VER', required=True)
 @click.option('--jt-home', '-j', envvar='JT_HOME', required=False)
 @click.pass_context
-def main(ctx, git_repo_url, workflow_name, workflow_version):
+def main(ctx, git_repo_url, workflow_name, workflow_version, jt_home):
     # initializing ctx.obj
     ctx.obj = {}
     ctx.obj['JT_HOME'] = jt_home
