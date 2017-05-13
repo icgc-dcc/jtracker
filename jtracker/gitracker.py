@@ -127,6 +127,7 @@ class GiTracker(object):
             if not os.path.isdir(new_job_path): os.makedirs(new_job_path)
 
             self._git_cmd(['mv', job_file_path, new_job_path])
+ 
             for t_state in (TASK_STATE.QUEUED, TASK_STATE.RUNNING, TASK_STATE.COMPLETED, TASK_STATE.FAILED):
                 t_path = os.path.join(new_job_path, t_state)
                 if not os.path.isdir(t_path): os.makedirs(t_path)
