@@ -6,6 +6,10 @@ import shutil
 import tempfile
 import subprocess
 import json
+import yaml
+import zipfile
+import requests
+from StringIO import StringIO
 from .utils import JOB_STATE, TASK_STATE
 from .task import Task
 from .job import Job
@@ -27,15 +31,21 @@ class GiTracker(object):
         folder_name = re.sub(r'\.git$', '', os.path.basename(self.git_repo_url))
         self._local_git_path = os.path.join(tempfile.mkdtemp(), folder_name)  # TODO: we can allow user to choose where to clone git
 
-        output = subprocess.check_output(["git", "clone", "--recursive", self.git_repo_url, self.local_git_path])
+        output = subprocess.check_output(["git", "clone", self.git_repo_url, self.local_git_path])
 
         self._gitracker_home = os.path.join(self.local_git_path,
                                             '.'.join([workflow_name, workflow_version, 'jtracker']))
 
-        self._workflow_home = os.path.join(self.gitracker_home, 'workflow')
+        self._init_workflow_home(workflow_name)
 
         yaml_file_name = '.'.join([workflow_name, 'jt', 'yaml'])
         self._workflow = Workflow(os.path.join(self.workflow_home, yaml_file_name))
+
+        if not workflow_name == self.workflow.name:
+            raise('Error: workflow name "%s" in workflow definition YAML does not match specified workflow name "%s"' % (self.workflow.name, workflow_name))
+
+        if not workflow_version.split('.')[:2] == self.workflow.version.split('.')[:2]:
+            raise('Error: workflow version "%s" in workflow definition YAML is not incompatible with specified version: "%s"!' % (workflow_version, self.workflow.version))
 
 
     @property
@@ -94,6 +104,9 @@ class GiTracker(object):
             # if yes, move the job to failed state
             # it is VERY IMPORTANT to not move the job if there is still running task, otherwise those task will fail miserably or even run into infinite loop
             elif not TASK_STATE.RUNNING in task_states and TASK_STATE.FAILED in task_states:
+                # TODO: we'd like to change this to 'die slow' approach, ie, we will run all
+                #       possible tasks before moving the job to failed state
+
                 self._git_cmd(['mv', job_path, os.path.join(self.gitracker_home, JOB_STATE.FAILED)])
                 # TODO: we can collect some runtime statistics etc here to add to job JSON file
 
@@ -544,3 +557,32 @@ class GiTracker(object):
         self._git_cmd(["clean", "-qfdx"])
         self._git_cmd(["pull", "-q"])
 
+
+    def _init_workflow_home(self, workflow_name):
+        workflow_conf_file = os.path.join(self.gitracker_home, 'workflow.config')
+        with open(workflow_conf_file, 'r') as w:
+            workflow_conf = yaml.load(w)
+
+        workflow_source_url = workflow_conf.get('source_code')
+
+        tmp_dir = tempfile.mkdtemp()
+
+        request = requests.get(workflow_source_url)
+        zfile = zipfile.ZipFile(StringIO(request.content))
+        zfile.extractall(tmp_dir)
+
+        workflow_yaml_file = '.'.join([workflow_name, 'jt', 'yaml'])
+
+        workflow_home = None
+        for root, dirs, files in os.walk(tmp_dir):
+            if workflow_yaml_file in files:
+                workflow_home = root
+                break
+
+        if not workflow_home:
+            raise('Error: unable to locate JT workflow definition YAML file')
+        else:
+            # for whatever reason, zip file downloaded from github does not have execution bit set
+            # have to do chmod on 'tools'
+            subprocess.check_output(["chmod", "-R", "755", os.path.join(workflow_home, 'tools')])
+            self._workflow_home = workflow_home
