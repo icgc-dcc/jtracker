@@ -6,6 +6,12 @@ JTracker is a Git repository based solution for workflow management and executio
 
 JTracker needs to be installed on a workflow task execution host. It may be a VM in a cloud environment, or may be just your laptop.
 
+### Install from PyPI for latest release (no need to clone the source)
+```
+pip install jtracker
+```
+
+### Install from source
 ```
 # install pipsi first
 curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
@@ -16,14 +22,13 @@ export PATH="~/.local/bin:$PATH"
 # clone the source code
 git clone https://github.com/icgc-dcc/jtracker.git
 
-# install jtracker from source
 cd jtracker
+
 pipsi install .
+```
 
-# or install from PyPI for latest release (no need to clone the source)
-pipsi install jtracker
-
-# run it
+### Run it
+```
 jt
 ```
 
