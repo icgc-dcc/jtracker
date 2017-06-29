@@ -292,7 +292,7 @@ class GiTracker(object):
             self._git_cmd(['push', '-q'])
 
             # now we create a new branch for the job that just got started
-            try:  # should not happend, but in case branch name already exists
+            try:  # should not happend, but in case branch name already exists, this is necessary when re-run the same job
                 self._git_cmd(['branch', '-d', 'running/' + job_id])
             except:
                 pass
