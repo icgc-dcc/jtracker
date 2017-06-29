@@ -9,7 +9,7 @@ from .utils import retry_if_result_none
 
 # we will allow this to be set by the client in a config file of some sort
 wait_random_min = 1000   #  1 sec
-wait_random_max = 6000   #  6 sec
+wait_random_max = 3000   #  3 sec
 stop_max_delay = None  #60000   #  60 sec, None will never stop
 
 
@@ -162,4 +162,7 @@ class Worker(object):
 
         with open(os.path.join(self.workdir, 'local_git_path.txt'), 'w') as f:
             f.write('%s\n' % self.jtracker.gitracker.local_git_path)
+
+        with open(os.path.join(self.workdir, 'workflow_home.txt'), 'w') as f:
+            f.write('%s\n' % self.jtracker.gitracker.workflow_home)
 

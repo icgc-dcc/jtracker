@@ -14,6 +14,7 @@ from .utils import JOB_STATE, TASK_STATE
 from .task import Task
 from .job import Job
 from .workflow import Workflow
+from . import __version__ as jt_version
 
 from retrying import retry
 from .utils import retry_if_result_none
@@ -21,7 +22,7 @@ from .utils import retry_if_result_none
 
 # we will allow this to be set by the client in a config file of some sort
 wait_random_min = 1000    #   1 sec
-wait_random_max = 10000   #  10 sec
+wait_random_max = 3000   #  3 sec
 stop_max_delay = None  #60000   #  60 sec, None will never stop
 
 
@@ -79,7 +80,7 @@ class GiTracker(object):
                 stop_max_delay=None)  # make sure the call success
     def update_job_state(self, job_id=None):
         try:
-            self._sync_local_git_with_server()
+            self._sync_local_git_with_server(branch='running/'+job_id)
             job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING, job_id)  # the job must be in RUNNING state
 
             queued_task_files = glob.glob(os.path.join(job_path, TASK_STATE.QUEUED, 'task.*', 'task.*.json'))
@@ -99,6 +100,7 @@ class GiTracker(object):
                 self._git_cmd(['add', self.gitracker_home])  # stage the change
                 self._git_cmd(['commit', '-m', 'Job completed: %s' % job_id])
                 self._git_cmd(['push', '-q'])
+                self._merge_branch_to_master(branch='running/'+job_id)
 
             # check whether no task is running, at least one of them is in failed state
             # if yes, move the job to failed state
@@ -113,6 +115,7 @@ class GiTracker(object):
                 self._git_cmd(['add', self.gitracker_home])  # stage the change
                 self._git_cmd(['commit', '-m', 'Job failed: %s' % job_id])
                 self._git_cmd(['push', '-q'])
+                self._merge_branch_to_master(branch='running/'+job_id)
 
             return True
         except Exception, e:  # except raised likely due to other worker picked made task state change, in such case, we will retry but not try forever
@@ -120,10 +123,34 @@ class GiTracker(object):
             return  # when that happen this function will be re-tried
 
 
+    @retry(retry_on_result=retry_if_result_none, \
+                wait_random_min=wait_random_min, \
+                wait_random_max=wait_random_max, \
+                stop_max_delay=None)  # make sure the call success
+    def _merge_branch_to_master(self, branch=None):
+        if not branch in self._get_running_job_branches():
+            return False
+
+        try:
+            self._sync_local_git_with_server(branch='master')
+            self._git_cmd(['merge', branch])
+            self._git_cmd(['push', '-q'])
+            self._git_cmd(['push', 'origin', '--delete', branch])
+            self._git_cmd(['branch', '-D', branch])
+            return True  # succeeded
+        except:
+            return  # when this happen, this function will be retried
+
+
+    def _get_running_job_branches(self):
+        running_job_branches = self._git_cmd(['ls-remote', '-q']).split()
+        return [b.replace('refs/heads/', '') for b in running_job_branches if b.startswith('refs/heads/running')]
+
+
     def next_job(self, worker=None):
         # always git pull first to synchronize with the remote
         # we may need to do Git hard reset when a job/task update already done by another worker
-        self._sync_local_git_with_server()
+        self._sync_local_git_with_server(branch='master')
 
         # check queued jobs
         queued_job_path = os.path.join(self.gitracker_home, JOB_STATE.QUEUED)
@@ -263,17 +290,30 @@ class GiTracker(object):
             self._git_cmd(['add', self.gitracker_home])  # stage the change
             self._git_cmd(['commit', '-m', 'Started new job %s' % job_id])
             self._git_cmd(['push', '-q'])
+
+            # now we create a new branch for the job that just got started
+            try:  # should not happend, but in case branch name already exists, this is necessary when re-run the same job
+                self._git_cmd(['branch', '-d', 'running/' + job_id])
+            except:
+                pass
+            self._git_cmd(['checkout', '-b', 'running/' + job_id])
+            self._git_cmd(['push', '--set-upstream', 'origin', 'running/' + job_id])
             return True  # successfully started a new job
 
 
     def next_task(self, worker=None, jtracker=None, timeout=None):
-        # always git pull first to synchronize with the remote
-        self._sync_local_git_with_server()
+        running_job_branches = self._get_running_job_branches()
 
-        # check queued task in running jobs
-        running_job_path = os.path.join(self.gitracker_home, JOB_STATE.RUNNING)
+        for branch in running_job_branches:
+          # always git pull first to synchronize with the remote
+          self._sync_local_git_with_server(branch=branch)
 
-        for root, dirs, files in os.walk(running_job_path):
+          # check queued task in running jobs
+          running_job_path = os.path.join(self.gitracker_home,
+                                            JOB_STATE.RUNNING,
+                                            branch.split('/')[-1])
+
+          for root, dirs, files in os.walk(running_job_path):
             if root.endswith(TASK_STATE.QUEUED):
                 for task_name in dirs:
                     job_id = root.split(os.path.sep)[-2]
@@ -312,7 +352,7 @@ class GiTracker(object):
         job_id = worker.task.job.job_id
 
         # always git pull first to synchronize with the remote
-        self._sync_local_git_with_server()
+        self._sync_local_git_with_server(branch='running/'+job_id)
 
         # current task and job states must be both RUNNING
         task_state = TASK_STATE.RUNNING
@@ -340,8 +380,12 @@ class GiTracker(object):
         else:
             output_dict = {}
 
-        output_dict['worker_id'] = worker.worker_id  # record worker_id
-        output_dict['task_state'] = move_to.split('.')[-1]
+        output_dict['_jt_'] = {
+            'worker_id': worker.worker_id,
+            'task_state': move_to.split('.')[-1],
+            'jt_version': jt_version,
+            'workflow_version': self.workflow.version
+        }
 
         task_dict = worker.task.task_dict
         if not task_dict.get('output'):
@@ -380,9 +424,11 @@ class GiTracker(object):
         origWD = os.getcwd()
         os.chdir(self.gitracker_home)
 
-        subprocess.check_output(["git"] + cmds)
+        ret = subprocess.check_output(["git"] + cmds)
 
         os.chdir(origWD)
+
+        return ret
 
 
     def _check_task_dependency(self, worker=None, task_json=None, task_dict=None, job_id=None):
@@ -551,14 +597,19 @@ class GiTracker(object):
         return ret
 
 
-    def _sync_local_git_with_server(self):
-        self._git_cmd(["checkout", "-q", "master"])
-        self._git_cmd(["reset", "--hard", "origin/master"])
+    def _sync_local_git_with_server(self, branch='master'):
+        self._git_cmd(["fetch", "--all"])
+        self._git_cmd(["checkout", "-q", branch])
+        self._git_cmd(["reset", "--hard", "origin/" + branch])
         self._git_cmd(["clean", "-qfdx"])
-        self._git_cmd(["pull", "-q"])
+        self._git_cmd(["pull", "-q", "--all"])
 
 
     def _init_workflow_home(self, workflow_name):
+        if os.path.isdir(os.path.join(self.gitracker_home, 'workflow')):  # for backward compatibility in case workflow definition is included in git
+            self._workflow_home = os.path.join(self.gitracker_home, 'workflow')
+            return
+
         workflow_conf_file = os.path.join(self.gitracker_home, 'workflow.config')
         with open(workflow_conf_file, 'r') as w:
             workflow_conf = yaml.load(w)
@@ -584,5 +635,6 @@ class GiTracker(object):
         else:
             # for whatever reason, zip file downloaded from github does not have execution bit set
             # have to do chmod on 'tools'
-            subprocess.check_output(["chmod", "-R", "755", os.path.join(workflow_home, 'tools')])
+            if os.path.isdir(os.path.join(workflow_home, 'tools')):
+                subprocess.check_output(["chmod", "-R", "755", os.path.join(workflow_home, 'tools')])
             self._workflow_home = workflow_home
