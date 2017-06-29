@@ -163,3 +163,6 @@ class Worker(object):
         with open(os.path.join(self.workdir, 'local_git_path.txt'), 'w') as f:
             f.write('%s\n' % self.jtracker.gitracker.local_git_path)
 
+        with open(os.path.join(self.workdir, 'workflow_home.txt'), 'w') as f:
+            f.write('%s\n' % self.jtracker.gitracker.workflow_home)
+

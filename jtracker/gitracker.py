@@ -14,6 +14,7 @@ from .utils import JOB_STATE, TASK_STATE
 from .task import Task
 from .job import Job
 from .workflow import Workflow
+from . import __version__ as jt_version
 
 from retrying import retry
 from .utils import retry_if_result_none
@@ -340,8 +341,12 @@ class GiTracker(object):
         else:
             output_dict = {}
 
-        output_dict['worker_id'] = worker.worker_id  # record worker_id
-        output_dict['task_state'] = move_to.split('.')[-1]
+        output_dict['_jt_'] = {
+            'worker_id': worker.worker_id,
+            'task_state': move_to.split('.')[-1],
+            'jt_version': jt_version,
+            'workflow_version': self.workflow.version
+        }
 
         task_dict = worker.task.task_dict
         if not task_dict.get('output'):
@@ -559,6 +564,10 @@ class GiTracker(object):
 
 
     def _init_workflow_home(self, workflow_name):
+        if os.path.isdir(os.path.join(self.gitracker_home, 'workflow')):  # for backward compatibility in case workflow definition is included in git
+            self._workflow_home = os.path.join(self.gitracker_home, 'workflow')
+            return
+
         workflow_conf_file = os.path.join(self.gitracker_home, 'workflow.config')
         with open(workflow_conf_file, 'r') as w:
             workflow_conf = yaml.load(w)
@@ -584,5 +593,6 @@ class GiTracker(object):
         else:
             # for whatever reason, zip file downloaded from github does not have execution bit set
             # have to do chmod on 'tools'
-            subprocess.check_output(["chmod", "-R", "755", os.path.join(workflow_home, 'tools')])
+            if os.path.isdir(os.path.join(workflow_home, 'tools')):
+                subprocess.check_output(["chmod", "-R", "755", os.path.join(workflow_home, 'tools')])
             self._workflow_home = workflow_home
