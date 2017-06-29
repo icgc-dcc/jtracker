@@ -1,4 +1,4 @@
-__version__ = '0.1.0rc7'
+__version__ = '0.1.0rc8'
 
 from .worker import Worker
 from .jtracker import JTracker
