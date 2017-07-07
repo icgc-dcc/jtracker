@@ -86,7 +86,8 @@ class JTracker(object):
             return task
         else: # no task in running jobs, then start a new job
             # we just need to trigger it here, the client will need to ask for new task again
-            self.next_job(worker=worker)
+            if not task == False:  # there is a task but we failed getting it, so should not start new job
+                self.next_job(worker=worker)
 
             # return None as we didn't get a task even though a new job might have been started,
             # upon receiving 'None' response the caller will call again

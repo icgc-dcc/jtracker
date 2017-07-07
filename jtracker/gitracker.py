@@ -296,8 +296,14 @@ class GiTracker(object):
                 self._git_cmd(['branch', '-d', 'running/' + job_id])
             except:
                 pass
-            self._git_cmd(['checkout', '-b', 'running/' + job_id])
-            self._git_cmd(['push', '--set-upstream', 'origin', 'running/' + job_id])
+            self._git_cmd(['checkout', '-b', 'running/' + job_id])  # create local branch
+            while True:
+                try:
+                    self._git_cmd(['push', '--set-upstream', 'origin', 'running/' + job_id])
+                except:
+                    continue
+                break
+
             return True  # successfully started a new job
 
 
@@ -328,14 +334,24 @@ class GiTracker(object):
                     if not os.path.isdir(running_worker_path): os.makedirs(running_worker_path)
 
                     if self._move_task(os.path.join(root, task_name), running_worker_path):
-                        task = Task(name=task_name, job=Job(
-                                                                job_id = job_id,
-                                                                state = JOB_STATE.RUNNING,
-                                                                jtracker = jtracker
-                                                            ),
-                                        worker=worker, jtracker=jtracker
-                                    )
-                        return task
+                        while True:
+                            try: # there is no reason this could fail
+                                task = Task(name=task_name, job=Job(
+                                                                        job_id = job_id,
+                                                                        state = JOB_STATE.RUNNING,
+                                                                        jtracker = jtracker
+                                                                    ),
+                                                worker=worker, jtracker=jtracker
+                                            )
+
+                                worker.task(task)
+
+                                return task
+                            except:
+                                continue
+                            break
+                    else:
+                        return False  # there is a task but we did not get it
 
 
     def task_completed(self, worker=None):
@@ -372,7 +388,7 @@ class GiTracker(object):
             return False # we will need better error handling later
 
         # now here we may collect outputs from worker to be included in task json file
-        output_json_file = os.path.join(worker.cwd, 'output.json')
+        output_json_file = os.path.join(worker.workdir, job_id, task_name, 'output.json')
 
         if os.path.isfile(output_json_file):
             with open(output_json_file) as output_json:
@@ -421,12 +437,9 @@ class GiTracker(object):
 
 
     def _git_cmd(self, cmds=[]):
-        origWD = os.getcwd()
         os.chdir(self.gitracker_home)
 
         ret = subprocess.check_output(["git"] + cmds)
-
-        os.chdir(origWD)
 
         return ret
 

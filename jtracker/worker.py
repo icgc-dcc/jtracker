@@ -62,10 +62,9 @@ class Worker(object):
     def task(self):
         return self._task
 
-
-    @property
-    def cwd(self):
-        return self._cwd
+    @task.setter
+    def task(self, task):
+        self._task = task
 
 
     @retry(retry_on_result=retry_if_result_none, \
@@ -79,24 +78,16 @@ class Worker(object):
 
         # it maybe necessary to automatically retry this call on behave of
         # the client according to timeout and retry settings
-        next_task = self.jtracker.next_task(self, timeout=None)
-
-        if next_task:
-            self._task = next_task
-
-            self._cwd = os.path.join(self.workdir, self.task.job.job_id, self.task.name)
-
-            if not os.path.isdir(self.cwd): os.makedirs(self.cwd)
-            os.chdir(self.cwd)  # new task, new cwd
-
-            return self.task
-        else:
-            return None
+        return self.jtracker.next_task(self, timeout=None)
 
 
     def run(self, retry=None):
         # if current task not exists, return False
         if not self.task: return False
+
+        cwd = os.path.join(self.workdir, self.task.job.job_id, self.task.name)
+        if not os.path.isdir(cwd): os.makedirs(cwd)
+        os.chdir(cwd)
 
         cmd = "PATH=%s:$PATH %s" % (os.path.join(self.jtracker.workflow_home, 'tools'), self.task.task_dict.get('command'))
         arg = "'%s'" % json.dumps(self.task.task_dict) if self.task.task_dict else ''
@@ -130,8 +121,6 @@ class Worker(object):
 
         if self.task.task_completed():
             self._task = None
-            self._cwd = self.workdir  # set cwd back to worker's workdir
-            os.chdir(self.cwd)
             return True
         else:
             return
@@ -146,8 +135,6 @@ class Worker(object):
 
         if self.task.task_failed():
             self._task = None
-            self._cwd = self.workdir  # set cwd back to worker's workdir
-            os.chdir(self.cwd)
             return True
         else:
             return
@@ -157,8 +144,6 @@ class Worker(object):
         self._workdir = os.path.join(self.jtracker.jt_home, self.worker_id)
 
         os.makedirs(self.workdir)
-        self._cwd = self.workdir
-        os.chdir(self.cwd)
 
         with open(os.path.join(self.workdir, 'local_git_path.txt'), 'w') as f:
             f.write('%s\n' % self.jtracker.gitracker.local_git_path)
