@@ -344,7 +344,7 @@ class GiTracker(object):
                                                 worker=worker, jtracker=jtracker
                                             )
 
-                                worker.task(task)
+                                worker.task = task
 
                                 return task
                             except:
