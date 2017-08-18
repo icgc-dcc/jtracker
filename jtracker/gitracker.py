@@ -32,7 +32,8 @@ class GiTracker(object):
         folder_name = re.sub(r'\.git$', '', os.path.basename(self.git_repo_url))
         self._local_git_path = os.path.join(tempfile.mkdtemp(), folder_name)  # TODO: we can allow user to choose where to clone git
 
-        output = subprocess.check_output(["git", "clone", self.git_repo_url, self.local_git_path])
+        # shallow clone
+        output = subprocess.check_output(["git", "clone", "--depth", "1", self.git_repo_url, self.local_git_path])
 
         self._gitracker_home = os.path.join(self.local_git_path,
                                             '.'.join([workflow_name, workflow_version, 'jtracker']))

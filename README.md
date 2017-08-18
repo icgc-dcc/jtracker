@@ -45,9 +45,9 @@ Quick note on workflow development and testing:
 
 ## Create a Git repository to manage and track workflow task execution
 
-Here is an example: https://github.com/jt-hub/ega-file-transfer-to-collab-jtracker/tree/master/ega-file-transfer-to-collab.0.4.0.jtracker
+Due to pontenially large amount of git commits and pushes, for running workflows in production, do not use GitHub to host job tracking repositories. Instead, please set up your own git server.
 
-At this time, you will need to set up this Git repository on your own manually. In the near future, 'jt' cli tool will be able to set it up automatically for you. 
+At this time, you will need to set up the job tracking Git repository on your own manually. In the near future, 'jt' cli tool will be able to set it up automatically for you.
 
 
 ## Start JTracker Worker on task execution hosts
@@ -55,7 +55,7 @@ At this time, you will need to set up this Git repository on your own manually. 
 On a task execution host, you can start a worker as follow assuming workflow definition and job json files exist as specified.
 
 ```
-jt -g 'git@github.com:jt-hub/ega-file-transfer-to-collab-jtracker.git' -w ega-file-transfer-to-collab -r 0.4.0 worker
+jt -g 'ssh://junjun@localhost:/Users/junjun/mygit/jtracker-demo-workflows.git' -w test -r 0.2.0 worker
 ```
 
 You can start multiple workers on the same host if there is enough computating resource. You can also start workers in different hosts at the same time. Workflow jobs/tasks will be picked up by individual workers as needed.
