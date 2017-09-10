@@ -2,7 +2,7 @@ import click
 import signal
 import multiprocessing
 from time import sleep
-from timeit import default_timer as timer
+import random
 from uuid import uuid4
 from ..core import Workflow  # needed for running local job
 from ..core import Job  # needed for running local job
@@ -24,11 +24,10 @@ class Executor(object):
     def __init__(self, jt_home=None, ams_server=None, wrs_server=None, jess_server=None,
                  queue=None,
                  workflow_name=None,
-                 # queue and workflow_name must be mutually exclusive, workflow_name must be 'dev' version
                  workflow_file=None,
                  job_file=None,  # when job_file is provided, it's local mode, no tracking from the server side
                  job_id=None,  # can optionally specify which job to run, not applicable when job_file specified
-                 parallel_jobs=1, parallel_workers=1, sleep_interval=10):
+                 parallel_jobs=1, parallel_workers=1, sleep_interval=1, max_jobs=0):
 
         self._killer = GracefulKiller()
         self._id = str(uuid4())
@@ -42,12 +41,16 @@ class Executor(object):
         self._workflow_file = workflow_file
         self._workflow_name = workflow_name
         self._parallel_jobs = parallel_jobs
+        self._max_jobs = max_jobs
         self._parallel_workers = parallel_workers
         self._sleep_interval = sleep_interval
 
         self._running_jobs = []
         self._processes = {}
 
+        self._validate_and_setup()
+
+    def _validate_and_setup(self):
         # if job_file specified, ignore job queue and job id
         if self.job_file:  # local mode
             if self.queue:
@@ -58,7 +61,7 @@ class Executor(object):
                 self._job_id = None
 
             if self.workflow_file:
-                if workflow_name:
+                if self.workflow_name:
                     click.echo("Local workflow file supplied, specified workflow name ignored '%s'." % workflow_name)
                     self._workflow_name = None
             else:  # if no workflow_file, then must provide workflow_name
@@ -157,6 +160,10 @@ class Executor(object):
         return self._parallel_jobs
 
     @property
+    def max_jobs(self):
+        return self._max_jobs
+
+    @property
     def parallel_workers(self):
         return self._parallel_workers
 
@@ -183,25 +190,32 @@ class Executor(object):
 
     def work(self, worker):
         proc_name = multiprocessing.current_process().name
-        worker.run()
-        click.echo('Finish task: {} by worker: {}'.format(proc_name, worker.id))
+        try:
+            rv = worker.run()
+            click.echo('Finish task: {} by worker: {}'.format(proc_name, worker.id))
+        except:
+            # for server mode:
+            # if exception happened, worker might not have reported failure to the server
+            # need to check the server and report as needed
+            pass
 
     def next_job(self):
         # get next job with optional 'job_id' parameter
         return {
-            "job.id": "afdfa"
+            "id": str(uuid4())
         }
 
     def has_next_task(self):
-        return True
+        if random.random() > 0.1:
+            return True
 
     def next_task_ready(self):
         return True
 
     def next_task(self):
         return {
-            "name": "download",
-            "job_id": "afdfa"
+            "name": random.choice(["download", "upload", "md5sum"]),
+            "job_id": random.choice(self.running_jobs)
         }
 
     def run(self):
@@ -221,11 +235,18 @@ class Executor(object):
         while True:
             if self.killer.kill_now:
                 click.echo('Received interruption signal, will not pick up new job. Exit when current running job (if '
-                           'any) finishes ...')
+                           'any) finishes...')
+                break
+
+            if self.max_jobs and len(self.running_jobs) >= self.max_jobs:  # this should really be finished jobs
+                click.echo('A total of %s job(s) have reached, relevant tasks are either finished or scheduled, '
+                           'executor will exit when running tasks finish...' % self.max_jobs)
                 break
 
             if len(self.running_jobs) >= self.parallel_jobs:
                 sleep(self.sleep_interval)
+                # TODO: needs to figure out how to remove finished jobs from the running_jobs list
+                #       if this running_jobs list is maintained on the server side, it would be easy
                 continue
 
             job = self.next_job()
@@ -234,38 +255,40 @@ class Executor(object):
                 break
 
             click.echo('Executor: %s starts working on job: %s' % (self.id, job))
-            self._running_jobs.append(job.get('job.id'))
+            self._running_jobs.append(job.get('id'))
 
             shutdown = False
             while self.has_next_task():
                 running_workers = 0
                 for j in self.running_jobs:
-                    if not self.processes: break
+                    click.echo('Running job: %s' % j)
+                    if not self.processes or self.processes.get(j) is None: self._processes[j] = []
                     for p in self.processes.get(j):
                         if p.is_alive():
-                            click.echo('Running process: ', p.name)
+                            click.echo('Running task: %s' % p.name)
                             running_workers += 1
                             p.join(timeout=0.1)
 
-                click.echo('Number of tasks running: {}'.format(running_workers))
+                click.echo('Number of tasks running: %s' % running_workers)
 
                 if running_workers < self.parallel_workers and self.next_task_ready():
-                    task = self.next_task()
-                    worker = Worker(jt_home=self.jt_home, task=task, executor_id=self.id, queue_id=self.queue,
-                                    jess_server=self.jess_server)
-                    click.echo('Worker: %s start task: %s in job: %s' %
-                               (worker.id, task.get('name'), task.get('job_id'))
-                               )
-                    p = multiprocessing.Process(target=self.work,
-                                                name='task:%s job:%s' % (task.get('name'), task.get('job_id')),
-                                                args=(worker,)
-                                                )
+                    task = self.next_task()  # server will be notified
+                    if task:
+                        worker = Worker(jt_home=self.jt_home, task=task, executor_id=self.id, queue_id=self.queue,
+                                        jess_server=self.jess_server)
+                        click.echo('Worker: %s start task: %s in job: %s' %
+                                   (worker.id, task.get('name'), task.get('job_id'))
+                                   )
+                        p = multiprocessing.Process(target=self.work,
+                                                    name='task:%s job:%s' % (task.get('name'), task.get('job_id')),
+                                                    args=(worker,)
+                                                    )
 
-                    if task.get('job_id') not in self.processes:
-                        self._processes[task.get('job_id')] = []
-                    self._processes[task.get('job_id')].append(p)
+                        if task.get('job_id') not in self.processes:
+                            self._processes[task.get('job_id')] = []
+                        self._processes[task.get('job_id')].append(p)
 
-                    p.start()
+                        p.start()
 
                 if self.killer.kill_now:
                     click.echo(

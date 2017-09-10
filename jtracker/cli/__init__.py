@@ -19,8 +19,10 @@ def print_version(ctx, param, value):
 
 
 @click.group()
-@click.option('--config-file', '-c', envvar='JT_CONFIG_FILE', default='.jt/config', required=False)
-@click.option('--version', '-v', is_flag=True, callback=print_version, expose_value=False, is_eager=True)
+@click.option('--config-file', '-c', envvar='JT_CONFIG_FILE', type=click.Path(exists=True),
+              default='.jt/config', help='JTracker configuration file', required=False)
+@click.option('--version', '-v', is_flag=True, callback=print_version, expose_value=False,
+              help='Show JTracker version', is_eager=True)
 @click.pass_context
 def main(ctx, config_file):
     # initialize configuration from config_file
@@ -48,11 +50,12 @@ def config(ctx):
 @click.option('-w', '--workflow-name', help='Workflow full name, eg, [{owner}/]{workflow}:{ver}')
 @click.option('-n', '--n-workers', type=int, default=2, help='Max number of parallel workers')
 @click.option('-m', '--n-jobs', type=int, default=1, help='Max number of parallel running jobs')
+@click.option('-x', '--m-jobs', type=int, default=0, help='Max number of jobs to be run by the executor')
 @click.option('-i', '--job-id', help='Execute specified job')
 @click.option('-j', '--job-file', type=click.Path(exists=True), help='Execute local job file')
 @click.option('-f', '--workflow-file', type=click.Path(exists=True), help='Use local workflow file')
 @click.pass_context
-def executor(ctx, job_file, job_id, queue, workflow_name, workflow_file, n_jobs, n_workers):
+def executor(ctx, job_file, job_id, queue, workflow_name, workflow_file, n_jobs, m_jobs, n_workers):
     """
     Launch JTracker Executor
     """
@@ -68,6 +71,7 @@ def executor(ctx, job_file, job_id, queue, workflow_name, workflow_file, n_jobs,
                                workflow_name=workflow_name,
                                workflow_file=workflow_file,
                                parallel_jobs=n_jobs,
+                               max_jobs=m_jobs,
                                parallel_workers=n_workers,
                                )
     except Exception as e:

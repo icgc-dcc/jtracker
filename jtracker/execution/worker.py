@@ -1,5 +1,6 @@
 from time import sleep
 from uuid import uuid4
+from random import random
 
 
 class Worker(object):
@@ -13,6 +14,13 @@ class Worker(object):
         return self._id
 
     def run(self):
+        # get inputs from server
+
         print('Worker is working ...')
-        sleep(3)
-        return
+        sleep(random() * 30)
+
+        # TODO: worker completes the task then reports back to server
+        output = {
+
+        }
+        return output
