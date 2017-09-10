@@ -44,6 +44,7 @@ class Executor(object):
         self._max_jobs = max_jobs
         self._parallel_workers = parallel_workers
         self._sleep_interval = sleep_interval
+        self._ran_jobs = 0
 
         self._running_jobs = []
         self._processes = {}
@@ -172,6 +173,10 @@ class Executor(object):
         return self._running_jobs
 
     @property
+    def ran_jobs(self):
+        return self._ran_jobs
+
+    @property
     def processes(self):
         return self._processes
 
@@ -238,7 +243,7 @@ class Executor(object):
                            'any) finishes...')
                 break
 
-            if self.max_jobs and len(self.running_jobs) >= self.max_jobs:  # this should really be finished jobs
+            if self.max_jobs and self.ran_jobs >= self.max_jobs:
                 click.echo('A total of %s job(s) have reached, relevant tasks are either finished or scheduled, '
                            'executor will exit when running tasks finish...' % self.max_jobs)
                 break
@@ -247,6 +252,16 @@ class Executor(object):
                 sleep(self.sleep_interval)
                 # TODO: needs to figure out how to remove finished jobs from the running_jobs list
                 #       if this running_jobs list is maintained on the server side, it would be easy
+                # Below is a local version
+                running_jobs = set([])
+                for j in self.running_jobs:
+                    if not self.processes or self.processes.get(j) is None: self._processes[j] = []
+                    for p in self.processes.get(j):
+                        if p.is_alive():
+                            job_id = p.name.split(':')[-1]
+                            running_jobs.add(job_id)
+                            p.join(timeout=0.1)
+                self._running_jobs = list(running_jobs)
                 continue
 
             job = self.next_job()
@@ -254,11 +269,12 @@ class Executor(object):
                 click.echo('No job to run, will exit when current running job (if any) finishes.')
                 break
 
-            click.echo('Executor: %s starts working on job: %s' % (self.id, job))
+            self._ran_jobs += 1
+            click.echo('Executor: %s starts no. %s job: %s' % (self.id, self.ran_jobs, job))
             self._running_jobs.append(job.get('id'))
 
             shutdown = False
-            while self.has_next_task():
+            while self.has_next_task():  # stay in this loop when there are tasks to be run related to current running jobs
                 running_workers = 0
                 for j in self.running_jobs:
                     click.echo('Running job: %s' % j)
@@ -276,7 +292,7 @@ class Executor(object):
                     if task:
                         worker = Worker(jt_home=self.jt_home, task=task, executor_id=self.id, queue_id=self.queue,
                                         jess_server=self.jess_server)
-                        click.echo('Worker: %s start task: %s in job: %s' %
+                        click.echo('Worker: %s starts task: %s in job: %s' %
                                    (worker.id, task.get('name'), task.get('job_id'))
                                    )
                         p = multiprocessing.Process(target=self.work,
@@ -293,7 +309,7 @@ class Executor(object):
                 if self.killer.kill_now:
                     click.echo(
                         'Received interruption signal, will not pick up new task. Exit when current running task(s) '
-                        'finishes ...')
+                        'finishes...')
                     shutdown = True
                     break
 
@@ -308,5 +324,5 @@ class Executor(object):
                 if p.is_alive():
                     p.join()
 
-                    # TODO: call server to mark executor terminated
-                    # report summary about completed jobs and running jobs if any
+        # TODO: call server to mark executor terminated
+        # report summary about completed jobs and running jobs if any
