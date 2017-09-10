@@ -1,0 +1,3 @@
+
+class JobClient(object):
+    pass

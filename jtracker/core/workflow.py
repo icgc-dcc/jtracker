@@ -1,10 +1,13 @@
 import yaml
-import json
+
 
 class Workflow(object):
-    def __init__(self, workflow_yaml_file=None):
-        with open(workflow_yaml_file, 'r') as stream:
-            self._workflow_dict = yaml.load(stream)
+    def __init__(self, workflow_yaml_file=None, workflow_yaml_string=None):
+        if workflow_yaml_string:
+            self._workflow_dict = yaml.load(workflow_yaml_string)
+        else:
+            with open(workflow_yaml_file, 'r') as stream:
+                self._workflow_dict = yaml.load(stream)
 
         self._name = self.workflow_dict.get('workflow').get('name')
         self._version = self.workflow_dict.get('workflow').get('version')
@@ -15,26 +18,21 @@ class Workflow(object):
         self._update_dependency()
         #print json.dumps(self.workflow_tasks, indent=2)  # debug
 
-
     @property
     def name(self):
         return self._name
-
 
     @property
     def version(self):
         return self._version
 
-
     @property
     def workflow_dict(self):
         return self._workflow_dict
 
-
     @property
     def workflow_tasks(self):
         return self._workflow_tasks
-
 
     def _get_workflow_tasks(self):
         tasks = self.workflow_dict.get('workflow', {}).get('tasks', {})
@@ -47,7 +45,7 @@ class Workflow(object):
         sub_tasks = {}
         for t in tasks:
             if '.' in t or '@' in t:
-                print "Workflow definition error: task name canot contain '.' or '@', offending name: '%s'" % t
+                print("Workflow definition error: task name canot contain '.' or '@', offending name: '%s'" % t)
                 raise
             if tasks[t].get('scatter'): # this is a scatter task
                 scatter_input = tasks[t].get('scatter', {}).get('input', {})
@@ -56,17 +54,17 @@ class Workflow(object):
                 # it's possible to support two level of nested scatter tasks,
                 # for now one level only
                 if not len(scatter_input) == 1 and 'with_items' in scatter_input:
-                    print "Workflow definition error: invalid scatter task definition in '%s'" % t
+                    print("Workflow definition error: invalid scatter task definition in '%s'" % t)
                     raise  # better exception handle is needed
 
                 scatter_tasks.append(t)
                 # expose sub tasks in scatter task to top level
                 for st in tasks[t].get('tasks', {}):
                     if '.' in t or '@' in st:
-                        print "Workflow definition error: task name canot contain '.' or '@', offending name: '%s'" % st
+                        print("Workflow definition error: task name canot contain '.' or '@', offending name: '%s'" % st)
                         raise
                     if sub_tasks.get(st):
-                        print "Workflow definition error: task name duplication detected '%s'" % st
+                        print("Workflow definition error: task name duplication detected '%s'" % st)
                         raise
 
                     sub_tasks[st] = tasks[t]['tasks'][st]
@@ -80,7 +78,7 @@ class Workflow(object):
         # merge sub_tasks into top level tasks
         duplicated_tasks = set(tasks).intersection(set(sub_tasks))
         if duplicated_tasks:
-            print "Workflow definition error: task name duplication detected '%s'" % ', '.join(duplicated_tasks)
+            print("Workflow definition error: task name duplication detected '%s'" % ', '.join(duplicated_tasks))
             raise
 
         tasks.update(sub_tasks)
@@ -92,12 +90,10 @@ class Workflow(object):
 
         self._workflow_tasks = tasks
 
-
     def _add_default_runtime_to_tools(self):
         for t in self.workflow_dict.get('tools', {}):
             if not 'runtime' in t:  # no runtime defined in the tool, add the default one
                 self.workflow_dict['tools'][t]['runtime'] = self.workflow_dict.get('workflow', {}).get('runtime')
-
 
     def _update_dependency(self):
         for task in self.workflow_tasks:
@@ -120,4 +116,3 @@ class Workflow(object):
                     self.workflow_tasks.get(task)['depends_on'] += list(dependency_to_add)
                 else:
                     self.workflow_tasks.get(task)['depends_on'] = list(dependency_to_add)
-

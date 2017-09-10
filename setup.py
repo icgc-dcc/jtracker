@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import re
 import ast
 import sys
@@ -39,7 +39,7 @@ setup(
     name = 'jtracker',
     version = version,
     description = 'Python library for distributed job scheduling and tracking backed on Git repository',
-    packages = ['jtracker'],
+    packages = find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     install_requires = install_reqs,
     tests_require = tests_require,
     cmdclass = {'test': PyTest},
