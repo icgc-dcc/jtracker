@@ -6,6 +6,7 @@ import random
 from uuid import uuid4
 from ..core import Workflow  # needed for running local job
 from ..core import Job  # needed for running local job
+from .scheduler import JessScheduler
 from .worker import Worker
 
 
@@ -21,7 +22,9 @@ class GracefulKiller:
 
 
 class Executor(object):
-    def __init__(self, jt_home=None, ams_server=None, wrs_server=None, jess_server=None,
+    def __init__(self, jt_home=None,
+                 jt_account=None,
+                 ams_server=None, wrs_server=None, jess_server=None,
                  queue=None,
                  workflow_name=None,
                  workflow_file=None,
@@ -32,6 +35,7 @@ class Executor(object):
         self._killer = GracefulKiller()
         self._id = str(uuid4())
         self._jt_home = jt_home
+        self._jt_account = jt_account
         self._ams_server = ams_server
         self._wrs_server = wrs_server
         self._jess_server = jess_server
@@ -50,6 +54,10 @@ class Executor(object):
         self._processes = {}
 
         self._validate_and_setup()
+
+        # TODO: check whether workflow package has already downloaded
+        # TODO: check whether previous executor session exists, restore it unless uesr chose not to (via options)
+
 
     def _validate_and_setup(self):
         # if job_file specified, ignore job queue and job id
@@ -119,6 +127,10 @@ class Executor(object):
     @property
     def jt_home(self):
         return self._jt_home
+
+    @property
+    def jt_account(self):
+        return self._jt_account
 
     @property
     def workflow_name(self):
@@ -237,6 +249,8 @@ class Executor(object):
         # let's register the executor to the queue first
         # TODO
 
+        # get the scheduler
+        scheduler = JessScheduler(jess_server=self.jess_server)
         while True:
             if self.killer.kill_now:
                 click.echo('Received interruption signal, will not pick up new job. Exit when current running job (if '
@@ -264,10 +278,28 @@ class Executor(object):
                 self._running_jobs = list(running_jobs)
                 continue
 
+            # could be better to leave it to the worker to really request the task, executor just to instruct the worker
+            # to get a task from a job has never been runs, the executor does not really care which specific new job
+            # to run next
             job = self.next_job()
             if not job:
                 click.echo('No job to run, will exit when current running job (if any) finishes.')
                 break
+            try:
+                worker = Worker(jt_home=self.jt_home, executor_id=self.id, scheduler=scheduler)
+                if not worker:  # if no task to run
+                    break
+                # get the task
+                if not worker.next_task():
+                    break
+                # start the task
+                p = multiprocessing.Process(target=self.work,
+                                            name='task:%s job:%s' % (task.get('name'), task.get('job_id')),
+                                            args=(worker,)
+                                            )
+                p.start()
+            except:
+                pass
 
             self._ran_jobs += 1
             click.echo('Executor: %s starts no. %s job: %s' % (self.id, self.ran_jobs, job))
@@ -290,8 +322,7 @@ class Executor(object):
                 if running_workers < self.parallel_workers and self.next_task_ready():
                     task = self.next_task()  # server will be notified
                     if task:
-                        worker = Worker(jt_home=self.jt_home, task=task, executor_id=self.id, queue_id=self.queue,
-                                        jess_server=self.jess_server)
+                        worker = Worker(jt_home=self.jt_home, executor_id=self.id, scheduler=scheduler)
                         click.echo('Worker: %s starts task: %s in job: %s' %
                                    (worker.id, task.get('name'), task.get('job_id'))
                                    )
