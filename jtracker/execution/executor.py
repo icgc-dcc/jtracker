@@ -7,6 +7,7 @@ from uuid import uuid4
 from ..core import Workflow  # needed for running local job
 from ..core import Job  # needed for running local job
 from .scheduler import JessScheduler
+from .scheduler import LocalScheduler
 from .worker import Worker
 
 
@@ -19,6 +20,18 @@ class GracefulKiller:
     def exit_gracefully(self, signum, frame):
         click.echo('Interruption signal received, will exit when the current running job finishes.')
         self.kill_now = True
+
+
+def work(worker):
+    proc_name = multiprocessing.current_process().name
+    try:
+        rv = worker.run()
+        click.echo('Finish task: {} by worker: {}'.format(proc_name, worker.id))
+    except:
+        # for server mode:
+        # if exception happened, worker might not have reported failure to the server
+        # need to check the server and report as needed
+        pass
 
 
 class Executor(object):
@@ -53,11 +66,17 @@ class Executor(object):
         self._running_jobs = []
         self._processes = {}
 
+        self._init_jt_home()
         self._validate_and_setup()
 
         # TODO: check whether workflow package has already downloaded
         # TODO: check whether previous executor session exists, restore it unless uesr chose not to (via options)
 
+    def _init_jt_home(self):
+        # TODO: read from config under jt_home, if config not exist create one
+
+        # get node id
+        self._node_id = str(uuid4())
 
     def _validate_and_setup(self):
         # if job_file specified, ignore job queue and job id
@@ -71,7 +90,7 @@ class Executor(object):
 
             if self.workflow_file:
                 if self.workflow_name:
-                    click.echo("Local workflow file supplied, specified workflow name ignored '%s'." % workflow_name)
+                    click.echo("Local workflow file supplied, specified workflow name ignored '%s'." % self.workflow_name)
                     self._workflow_name = None
             else:  # if no workflow_file, then must provide workflow_name
                 if not self.workflow_name:
@@ -123,6 +142,10 @@ class Executor(object):
     @property
     def id(self):
         return self._id
+
+    @property
+    def node_id(self):
+        return self._node_id
 
     @property
     def jt_home(self):
@@ -205,17 +228,6 @@ class Executor(object):
     def get_queue_by_workflow_name(self, workflow_name=None):
         return
 
-    def work(self, worker):
-        proc_name = multiprocessing.current_process().name
-        try:
-            rv = worker.run()
-            click.echo('Finish task: {} by worker: {}'.format(proc_name, worker.id))
-        except:
-            # for server mode:
-            # if exception happened, worker might not have reported failure to the server
-            # need to check the server and report as needed
-            pass
-
     def next_job(self):
         # get next job with optional 'job_id' parameter
         return {
@@ -250,7 +262,7 @@ class Executor(object):
         # TODO
 
         # get the scheduler
-        scheduler = JessScheduler(jess_server=self.jess_server)
+        scheduler = JessScheduler(jess_server=self.jess_server, jt_account=self.jt_account, queue=self.queue)
         while True:
             if self.killer.kill_now:
                 click.echo('Received interruption signal, will not pick up new job. Exit when current running job (if '
@@ -262,51 +274,35 @@ class Executor(object):
                            'executor will exit when running tasks finish...' % self.max_jobs)
                 break
 
-            if len(self.running_jobs) >= self.parallel_jobs:
+            if scheduler.running_jobs(executor_id=self.id) >= self.parallel_jobs:
+                # basically we check again to see if running jobs drop to under the parallel limit
+                # detail: we need to worry about possible run-away job, job appears to be running but worker died
+                #         already, is that possible if executor is still alive? Can executor report the state of a
+                #         task ran by a worker whose process exited with error?
                 sleep(self.sleep_interval)
-                # TODO: needs to figure out how to remove finished jobs from the running_jobs list
-                #       if this running_jobs list is maintained on the server side, it would be easy
-                # Below is a local version
-                running_jobs = set([])
-                for j in self.running_jobs:
-                    if not self.processes or self.processes.get(j) is None: self._processes[j] = []
-                    for p in self.processes.get(j):
-                        if p.is_alive():
-                            job_id = p.name.split(':')[-1]
-                            running_jobs.add(job_id)
-                            p.join(timeout=0.1)
-                self._running_jobs = list(running_jobs)
                 continue
 
-            # could be better to leave it to the worker to really request the task, executor just to instruct the worker
-            # to get a task from a job has never been runs, the executor does not really care which specific new job
-            # to run next
-            job = self.next_job()
-            if not job:
-                click.echo('No job to run, will exit when current running job (if any) finishes.')
-                break
             try:
-                worker = Worker(jt_home=self.jt_home, executor_id=self.id, scheduler=scheduler)
-                if not worker:  # if no task to run
-                    break
-                # get the task
-                if not worker.next_task():
+                worker = Worker(jt_home=self.jt_home, executor_id=self.id, scheduler=scheduler, node_id=self.node_id)
+
+                # get a task from a new job, break if no task returned, which suggests there is no more job
+                if not worker.next_task(only_new_job=True):
                     break
                 # start the task
-                p = multiprocessing.Process(target=self.work,
+                p = multiprocessing.Process(target=work,
                                             name='task:%s job:%s' % (task.get('name'), task.get('job_id')),
                                             args=(worker,)
                                             )
                 p.start()
+
+                # this is the first task of a new job
+                self._ran_jobs += 1
+                click.echo('Executor: %s starts no. %s job' % (self.id, self.ran_jobs))
             except:
                 pass
 
-            self._ran_jobs += 1
-            click.echo('Executor: %s starts no. %s job: %s' % (self.id, self.ran_jobs, job))
-            self._running_jobs.append(job.get('id'))
-
             shutdown = False
-            while self.has_next_task():  # stay in this loop when there are tasks to be run related to current running jobs
+            while self.scheduler.has_next_task(executor_id=self.id):  # stay in this loop when there are tasks to be run related to current running jobs
                 running_workers = 0
                 for j in self.running_jobs:
                     click.echo('Running job: %s' % j)
@@ -326,7 +322,7 @@ class Executor(object):
                         click.echo('Worker: %s starts task: %s in job: %s' %
                                    (worker.id, task.get('name'), task.get('job_id'))
                                    )
-                        p = multiprocessing.Process(target=self.work,
+                        p = multiprocessing.Process(target=work,
                                                     name='task:%s job:%s' % (task.get('name'), task.get('job_id')),
                                                     args=(worker,)
                                                     )
@@ -357,3 +353,5 @@ class Executor(object):
 
         # TODO: call server to mark executor terminated
         # report summary about completed jobs and running jobs if any
+
+

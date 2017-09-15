@@ -26,9 +26,18 @@ class JessScheduler(Scheduler):
     def queue(self):
         return self._queue
 
-    def next_task(self, in_jobs: str=(), only_new_job=False, worker_id=None):
-        if worker_id is None:
-            raise Exception('Must specify worker ID')
+    def running_jobs(self, executor_id: str=None, in_jobs: str=()):
+        return 1
+
+    def running_tasks(self, executor_id: str=None, in_jobs: str=()):
+        pass
+
+    def has_next_task(self, executor_id: str=None, in_jobs: str=()):
+        pass
+
+    def next_task(self, worker_id=None, executor_id=None, in_jobs: str=(), only_new_job=False):
+        if worker_id is None or executor_id is None:
+            raise Exception('Must specify worker ID and executor ID')
 
         # PUT /tasks/owner/{owner_name}/queue/{queue_id}/next_task
         request_url = '%s/tasks/owner/%s/queue/queue_id/%s' % (self.jess_server.strip('/'),
