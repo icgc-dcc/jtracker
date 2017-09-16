@@ -8,11 +8,13 @@ class JessScheduler(Scheduler):
     """
     Scheduler backed by JTracker Job Execution and Scheduling Services
     """
-    def __init__(self, jess_server=None, jt_account=None, queue=None):
+
+    def __init__(self, jess_server=None, jt_account=None, queue=None, executor_id: str = None):
         super().__init__()
         self._jess_server = jess_server
         self._jt_account = jt_account
         self._queue = queue
+        self._executor_id = executor_id
 
     @property
     def jess_server(self):
@@ -26,25 +28,34 @@ class JessScheduler(Scheduler):
     def queue(self):
         return self._queue
 
-    def running_jobs(self, executor_id: str=None, in_jobs: str=()):
-        return 1
+    @property
+    def executor_id(self):
+        return self._executor_id
 
-    def running_tasks(self, executor_id: str=None, in_jobs: str=()):
+    def running_jobs(self, in_jobs: str = ()):
+        return 'abc', 'cys'
+
+    def running_tasks(self, in_jobs: str = ()):
         pass
 
-    def has_next_task(self, executor_id: str=None, in_jobs: str=()):
+    def has_next_task(self, in_jobs: str = ()):
         pass
 
-    def next_task(self, worker_id=None, executor_id=None, in_jobs: str=(), only_new_job=False):
-        if worker_id is None or executor_id is None:
-            raise Exception('Must specify worker ID and executor ID')
+    def next_task_ready(self, in_jobs: str = ()):
+        pass
+
+    def next_task(self, worker=None, in_jobs: str = (), only_new_job=False):
+        if worker is None:
+            worker = dict()
+        if not worker:
+            raise Exception('Must specify a worker')
 
         # PUT /tasks/owner/{owner_name}/queue/{queue_id}/next_task
-        request_url = '%s/tasks/owner/%s/queue/queue_id/%s' % (self.jess_server.strip('/'),
-                                                               self.jt_account, self.queue)
+        request_url = "%s/tasks/owner/%s/queue/%s/next_task" % (self.jess_server.strip('/'),
+                                                                self.jt_account, self.queue)
 
         try:
-            r = requests.put(url=request_url, body=worker.to_dict())
+            r = requests.put(url=request_url, json=worker)
         except:
             raise JessNotAvailable('JESS service temporarily unavailable')
 
