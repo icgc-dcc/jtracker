@@ -31,11 +31,8 @@ class Worker(object):
     def task(self):
         return self._task
 
-    def next_task(self, in_jobs: str=(), only_new_job: bool=False):
-        worker = {
-            'id': self.id
-        }
-        self._task = self.scheduler.next_task(worker=worker, in_jobs=in_jobs, only_new_job=only_new_job)
+    def next_task(self, job_state=None):
+        self._task = self.scheduler.next_task(job_state)
         return self.task
 
     def run(self, retry=0):

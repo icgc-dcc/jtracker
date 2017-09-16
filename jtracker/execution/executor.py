@@ -3,12 +3,14 @@ import signal
 import multiprocessing
 from time import sleep
 import random
+import requests
 from uuid import uuid4
 from ..core import Workflow  # needed for running local job
 from ..core import Job  # needed for running local job
 from .scheduler import JessScheduler
 from .scheduler import LocalScheduler
 from .worker import Worker
+from jtracker.exceptions import JessNotAvailable
 
 
 class GracefulKiller:
@@ -234,38 +236,39 @@ class Executor(object):
     def get_queue_by_workflow_name(self, workflow_name=None):
         return
 
-    def next_job(self):
-        # get next job with optional 'job_id' parameter
-        return {
-            "id": str(uuid4())
+    def _register_executor(self):
+        # JESS endpoint: /executors/owner/{owner_name}/queue/{queue_id}
+
+        # later we should really get executor dict by self.to_dict, dict version of the executor object
+        executor = {
+            'id': self.id  # only ID field for now
         }
 
-    def has_next_task(self):
-        if random.random() > 0.1:
-            return True
+        request_url = "%s/executors/owner/%s/queue/%s" % (self.jess_server.strip('/'), self.jt_account, self.queue)
 
-    def next_task_ready(self):
-        return True
+        try:
+            r = requests.post(url=request_url, json=executor)
+        except:
+            raise JessNotAvailable('JESS service temporarily unavailable')
 
-    def next_task(self):
-        return {
-            "name": random.choice(["download", "upload", "md5sum"]),
-            "job_id": random.choice(self.running_jobs)
-        }
+        if r.status_code != 200:
+            raise Exception('Failed to register the executor, please make sure it has not been registered before')
 
     def run(self):
         if self.job_file:
-            self.run_local()
+            self._run_local()
         else:
-            self.run_remote()
+            self._run_remote()
 
-    def run_local(self):
+    def _run_local(self):
         # TODO: local run is more complicated, let's worry about it later
         click.echo('Run local job not implemented yet.')
 
-    def run_remote(self):
+    def _run_remote(self):
         # let's register the executor to the queue first
-        # TODO
+        # TODO: if we are going to support 'resume' an executor, we will need to check JESS for existing executor
+        #       and test whether it's resumeable
+        self._register_executor()
 
         # get the scheduler
         self._scheduler = JessScheduler(jess_server=self.jess_server,
@@ -293,7 +296,7 @@ class Executor(object):
             worker = Worker(jt_home=self.jt_home, scheduler=self.scheduler, node_id=self.node_id)
 
             # get a task from a new job, break if no task returned, which suggests there is no more job
-            if not worker.next_task(only_new_job=True):
+            if not worker.next_task(job_state='queued'):
                 break
             # start the task
             print(worker.task)
@@ -301,6 +304,8 @@ class Executor(object):
                                         name='task:%s job:%s' % (worker.task.get('name'), worker.task.get('job.id')),
                                         args=(worker,)
                                         )
+
+            self._worker_processes[worker.task.get('job.id')] = [p]
             p.start()
 
             # this is the first task of a new job
@@ -312,10 +317,8 @@ class Executor(object):
             while self.scheduler.has_next_task():
                 running_workers = 0
                 for j in self.scheduler.running_jobs():
-                    click.echo('Running job: %s' % j)
-                    if not self.worker_processes or self.worker_processes.get(j) is None:
-                        self._worker_processes[j] = []
-                    for p in self.worker_processes.get(j):
+                    click.echo('Running job: %s' % j.get('id'))
+                    for p in self.worker_processes.get(j.get('id')):
                         if p.is_alive():
                             click.echo('Running task: %s' % p.name)
                             running_workers += 1
@@ -323,23 +326,19 @@ class Executor(object):
 
                 click.echo('Number of tasks running locally: %s' % running_workers)
 
-                if running_workers < self.parallel_workers and self.scheduler.next_task_ready(executor_id=self.id):
-                    task = self.next_task()  # server will be notified
-                    if task:
-                        worker = Worker(jt_home=self.jt_home, scheduler=self.scheduler, node_id=self.node_id)
-                        click.echo('Worker: %s starts task: %s in job: %s' %
-                                   (worker.id, task.get('name'), task.get('job_id'))
-                                   )
-                        p = multiprocessing.Process(target=work,
-                                                    name='task:%s job:%s' % (worker.task.get('name'), worker.task.get('job_id')),
-                                                    args=(worker,)
-                                                    )
+                if running_workers < self.parallel_workers and self.scheduler.next_task_ready():
+                    worker = Worker(jt_home=self.jt_home, scheduler=self.scheduler, node_id=self.node_id)
+                    if not worker.next_task(job_state='running'):  # get next task in the current running jobs
+                        sleep(self.sleep_interval)
+                        break
 
-                        if task.get('job_id') not in self.worker_processes:
-                            self._worker_processes[task.get('job_id')] = []
-                        self._worker_processes[task.get('job_id')].append(p)
+                    print(worker.task)
+                    p = multiprocessing.Process(target=work,
+                                                name='task:%s job:%s' % (worker.task.get('name'), worker.task.get('job.id')),
+                                                args=(worker,)
+                                                )
 
-                        p.start()
+                    p.start()
 
                 if self.killer.kill_now:
                     click.echo(

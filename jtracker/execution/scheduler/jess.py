@@ -33,29 +33,41 @@ class JessScheduler(Scheduler):
         return self._executor_id
 
     def running_jobs(self, in_jobs: str = ()):
-        return 'abc', 'cys'
+        # call JESS endpoint: /jobs/owner/{owner_name}/queue/{queue_id}/executor/{executor_id}
+        request_url = "%s/jobs/owner/%s/queue/%s/executor/%s" % (self.jess_server.strip('/'),
+                                                                 self.jt_account, self.queue, self.executor_id)
+
+        try:
+            r = requests.get(url=request_url)
+        except:
+            raise JessNotAvailable('JESS service temporarily unavailable')
+
+        if r.status_code != 200:
+            raise Exception('Unable to schedule new task')
+
+        return json.loads(r.text)
 
     def running_tasks(self, in_jobs: str = ()):
         pass
 
     def has_next_task(self, in_jobs: str = ()):
-        pass
+        return True
 
     def next_task_ready(self, in_jobs: str = ()):
         pass
 
-    def next_task(self, worker=None, in_jobs: str = (), only_new_job=False):
-        if worker is None:
-            worker = dict()
-        if not worker:
-            raise Exception('Must specify a worker')
-
-        # PUT /tasks/owner/{owner_name}/queue/{queue_id}/next_task
-        request_url = "%s/tasks/owner/%s/queue/%s/next_task" % (self.jess_server.strip('/'),
-                                                                self.jt_account, self.queue)
+    def next_task(self, job_state=None):
+        # GET /tasks/owner/{owner_name}/queue/{queue_id}/next_task
+        request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/next_task?job_state=%s" % (
+                                                                self.jess_server.strip('/'),
+                                                                self.jt_account,
+                                                                self.queue,
+                                                                self.executor_id,
+                                                                job_state
+                                                                )
 
         try:
-            r = requests.put(url=request_url, json=worker)
+            r = requests.get(url=request_url)
         except:
             raise JessNotAvailable('JESS service temporarily unavailable')
 
