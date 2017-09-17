@@ -44,7 +44,7 @@ class Executor(object):
                  workflow_file=None,
                  job_file=None,  # when job_file is provided, it's local mode, no tracking from the server side
                  job_id=None,  # can optionally specify which job to run, not applicable when job_file specified
-                 parallel_jobs=1, parallel_workers=1, sleep_interval=1, max_jobs=0):
+                 parallel_jobs=1, parallel_workers=1, sleep_interval=5, max_jobs=0, continuous_run=False):
 
         self._scheduler = None
         self._killer = GracefulKiller()
@@ -63,6 +63,7 @@ class Executor(object):
         self._parallel_workers = parallel_workers
         self._sleep_interval = sleep_interval
         self._ran_jobs = 0
+        self._continuous_run = continuous_run
 
         self._running_jobs = []
         self._worker_processes = {}
@@ -220,6 +221,11 @@ class Executor(object):
         return self._ran_jobs
 
     @property
+    def continuous_run(self):
+        return self._continuous_run
+
+
+    @property
     def worker_processes(self):
         return self._worker_processes
 
@@ -281,8 +287,12 @@ class Executor(object):
 
             if self.max_jobs and self.ran_jobs >= self.max_jobs:
                 job_count_text = 'job has' if self.max_jobs == 1 else 'jobs have'
-                click.echo('Total number of executed %s reached %s, relevant tasks are either finished or scheduled, '
-                           'executor will exit after running tasks finish ...' % (job_count_text, self.max_jobs))
+                click.echo('Total number of executed %s reached preset limit of %s, relevant tasks are either '
+                           'finished or scheduled, executor will exit after running tasks finish ...' %
+                           (job_count_text, self.max_jobs)
+                           )
+
+                click.echo("Current running jobs: %s, running tasks: %s" % self._get_run_status())
                 break
 
             if self.scheduler.running_jobs() and len(self.scheduler.running_jobs()) >= self.parallel_jobs:
@@ -291,6 +301,7 @@ class Executor(object):
                 #         already, is that possible if executor is still alive? Can executor report the state of a
                 #         task ran by a worker whose process exited with error?
                 click.echo('Reached limit for parallel running jobs, will start new job after completing a current job.')
+                click.echo("Current running jobs: %s, running tasks: %s" % self._get_run_status())
 
                 sleep(self.sleep_interval)
                 continue
@@ -299,8 +310,15 @@ class Executor(object):
 
             # get a task from a new job, break if no task returned, which suggests there is no more job
             if not worker.next_task(job_state='queued'):
-                click.echo('No job in the queue. Exit after finishing current running job (if any) ...')
-                break
+                if self.continuous_run:
+                    click.echo('No job in the queue, will start new job as it arrives.')
+                    click.echo("Current running jobs: %s, running tasks: %s" % self._get_run_status())
+                    sleep(self.sleep_interval)  # TODO: may want to have a smarter wait intervals
+                    continue
+                else:
+                    click.echo('No job in the queue. Exit after finishing current running job (if any) ...')
+                    click.echo("Current running jobs: %s, running tasks: %s" % self._get_run_status())
+                    break
 
             # start the task
             p = multiprocessing.Process(target=work,
@@ -325,16 +343,9 @@ class Executor(object):
                     shutdown = True
                     break
 
-                running_workers = 0
-                for j in self.scheduler.running_jobs():
-                    click.echo('Running job: %s' % j.get('id'))
-                    for p in self.worker_processes.get(j.get('id')):
-                        if p.is_alive():
-                            click.echo('Running task: %s' % p.name)
-                            running_workers += 1
-                            p.join(timeout=0.1)
+                running_jobs, running_workers = self._get_run_status()
 
-                click.echo('Number of tasks running locally: %s' % running_workers)
+                click.echo('Current running jobs: %s, running tasks: %s' % (running_jobs, running_workers))
 
                 if running_workers < self.parallel_workers:
                     worker = Worker(jt_home=self.jt_home, scheduler=self.scheduler, node_id=self.node_id)
@@ -370,3 +381,17 @@ class Executor(object):
 
         # TODO: call server to mark this executor terminated
         # report summary about completed jobs and running jobs if any
+        click.echo('Executed %s %s.' % (self.ran_jobs, 'job' if self.ran_jobs <= 1 else 'jobs'))
+
+    def _get_run_status(self):
+        running_workers = 0
+        running_jobs = 0
+        for j in self.scheduler.running_jobs():
+            click.echo('Running job: %s' % j.get('id'))
+            running_jobs += 1
+            for p in self.worker_processes.get(j.get('id')):
+                if p.is_alive():
+                    click.echo('Running task: %s' % p.name)
+                    running_workers += 1
+                    p.join(timeout=0.1)
+        return running_jobs, running_workers

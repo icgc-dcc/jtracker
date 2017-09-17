@@ -54,8 +54,9 @@ def config(ctx):
 @click.option('-i', '--job-id', help='Execute specified job')
 @click.option('-j', '--job-file', type=click.Path(exists=True), help='Execute local job file')
 @click.option('-f', '--workflow-file', type=click.Path(exists=True), help='Use local workflow file')
+@click.option('-c', '--continuous-run', is_flag=True, help='Keep executor running even job queue is empty')
 @click.pass_context
-def executor(ctx, job_file, job_id, queue, workflow_name, workflow_file, n_jobs, m_jobs, n_workers):
+def executor(ctx, job_file, job_id, queue, workflow_name, workflow_file, n_jobs, m_jobs, n_workers, continuous_run):
     """
     Launch JTracker Executor
     """
@@ -73,6 +74,7 @@ def executor(ctx, job_file, job_id, queue, workflow_name, workflow_file, n_jobs,
                                parallel_jobs=n_jobs,
                                max_jobs=m_jobs,
                                parallel_workers=n_workers,
+                               continuous_run=continuous_run
                                )
     except Exception as e:
         click.echo(str(e))
@@ -80,7 +82,7 @@ def executor(ctx, job_file, job_id, queue, workflow_name, workflow_file, n_jobs,
         ctx.abort()
 
     if jt_executor:
-        click.echo('Starting execution ...')
+        click.echo('Starting executor ...')
         jt_executor.run()
 
 

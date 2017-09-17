@@ -60,7 +60,7 @@ class Worker(object):
         }
 
         # need to report success properly
-        success = True if random() > 0.1 else False
+        success = True if random() > 0.01 else False
 
         job_id = self.task.get('job.id')
         task_name = self.task.get('name')
