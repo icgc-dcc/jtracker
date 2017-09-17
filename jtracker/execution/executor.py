@@ -275,8 +275,8 @@ class Executor(object):
                                         jt_account=self.jt_account, queue=self.queue, executor_id=self.id)
         while True:
             if self.killer.kill_now:
-                click.echo('Received interruption signal, will not pick up new job. Exit when current running job (if '
-                           'any) finishes...')
+                click.echo('Received interruption signal, will not pick up new job. Exit after finishing current '
+                           'running job (if any) ...')
                 break
 
             if self.max_jobs and self.ran_jobs >= self.max_jobs:
@@ -289,7 +289,7 @@ class Executor(object):
                 # detail: we need to worry about possible run-away job, job appears to be running but worker died
                 #         already, is that possible if executor is still alive? Can executor report the state of a
                 #         task ran by a worker whose process exited with error?
-                click.echo('Limit reached for parallel jobs, wait and try.')
+                click.echo('Reached limit for parallel running jobs, will start new job after completing current job.')
                 sleep(self.sleep_interval)
                 continue
 
@@ -297,9 +297,10 @@ class Executor(object):
 
             # get a task from a new job, break if no task returned, which suggests there is no more job
             if not worker.next_task(job_state='queued'):
+                click.echo('No job in the queue. Exit after finishing current running job (if any) ...')
                 break
+
             # start the task
-            print(worker.task)
             p = multiprocessing.Process(target=work,
                                         name='task:%s job:%s' % (worker.task.get('name'), worker.task.get('job.id')),
                                         args=(worker,)
@@ -315,6 +316,13 @@ class Executor(object):
             shutdown = False
             # stay in this loop when there are tasks to be run related to current running jobs
             while self.scheduler.has_next_task():
+                if self.killer.kill_now:
+                    click.echo(
+                        'Received interruption signal, will not pick up new task. Exit when current running task(s) '
+                        'finishes...')
+                    shutdown = True
+                    break
+
                 running_workers = 0
                 for j in self.scheduler.running_jobs():
                     click.echo('Running job: %s' % j.get('id'))
@@ -325,27 +333,30 @@ class Executor(object):
                             p.join(timeout=0.1)
 
                 click.echo('Number of tasks running locally: %s' % running_workers)
+                # TODO: TO BE REMOVED! TEMP way to mimic completion of scheduling all tasks for the running jobs
+                if running_workers < 2:
+                    break
 
-                if running_workers < self.parallel_workers and self.scheduler.next_task_ready():
+                if running_workers < self.parallel_workers:
                     worker = Worker(jt_home=self.jt_home, scheduler=self.scheduler, node_id=self.node_id)
-                    if not worker.next_task(job_state='running'):  # get next task in the current running jobs
-                        sleep(self.sleep_interval)
-                        break
-
-                    print(worker.task)
-                    p = multiprocessing.Process(target=work,
+                    task = worker.next_task(job_state='running')  # get next task in the current running jobs
+                    if not task:  # else try to start task for next job if it's appropriate to do so
+                        if not (self.max_jobs and self.ran_jobs >= self.max_jobs) and \
+                                        not len(self.scheduler.running_jobs()) >= self.parallel_jobs:
+                            task = worker.next_task(job_state='queued')
+                            if task:
+                                self._ran_jobs += 1
+                                click.echo('Executor: %s starts no. %s job' % (self.id, self.ran_jobs))
+                    if task:
+                        p = multiprocessing.Process(target=work,
                                                 name='task:%s job:%s' % (worker.task.get('name'), worker.task.get('job.id')),
                                                 args=(worker,)
                                                 )
-
-                    p.start()
-
-                if self.killer.kill_now:
-                    click.echo(
-                        'Received interruption signal, will not pick up new task. Exit when current running task(s) '
-                        'finishes...')
-                    shutdown = True
-                    break
+                        if not self.worker_processes.get(worker.task.get('job.id')):
+                            self._worker_processes[worker.task.get('job.id')] = [p]
+                        else:
+                            self._worker_processes[worker.task.get('job.id')].append(p)
+                        p.start()
 
                 sleep(self.sleep_interval)
 

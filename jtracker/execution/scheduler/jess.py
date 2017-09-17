@@ -10,11 +10,9 @@ class JessScheduler(Scheduler):
     """
 
     def __init__(self, jess_server=None, jt_account=None, queue=None, executor_id: str = None):
-        super().__init__()
+        super().__init__(queue=queue, executor_id=executor_id)
         self._jess_server = jess_server
         self._jt_account = jt_account
-        self._queue = queue
-        self._executor_id = executor_id
 
     @property
     def jess_server(self):
@@ -23,14 +21,6 @@ class JessScheduler(Scheduler):
     @property
     def jt_account(self):
         return self._jt_account
-
-    @property
-    def queue(self):
-        return self._queue
-
-    @property
-    def executor_id(self):
-        return self._executor_id
 
     def running_jobs(self, in_jobs: str = ()):
         # call JESS endpoint: /jobs/owner/{owner_name}/queue/{queue_id}/executor/{executor_id}
@@ -47,24 +37,20 @@ class JessScheduler(Scheduler):
 
         return json.loads(r.text)
 
-    def running_tasks(self, in_jobs: str = ()):
-        pass
-
-    def has_next_task(self, in_jobs: str = ()):
+    def has_next_task(self):
         return True
-
-    def next_task_ready(self, in_jobs: str = ()):
-        pass
 
     def next_task(self, job_state=None):
         # GET /tasks/owner/{owner_name}/queue/{queue_id}/next_task
-        request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/next_task?job_state=%s" % (
+        request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/next_task" % (
                                                                 self.jess_server.strip('/'),
                                                                 self.jt_account,
                                                                 self.queue,
-                                                                self.executor_id,
-                                                                job_state
+                                                                self.executor_id
                                                                 )
+
+        if job_state:
+            request_url += '?job_state=%s' % job_state
 
         try:
             r = requests.get(url=request_url)
@@ -74,4 +60,41 @@ class JessScheduler(Scheduler):
         if r.status_code != 200:
             raise Exception('Unable to schedule new task')
 
-        return json.loads(r.text)
+        rv = r.text if r.text else '{}'
+        return json.loads(rv)
+
+    def _task_ended(self, job_id, task_name, output=None, success=True):
+        if output is None:
+            output = dict()
+
+        if success:
+            operation = 'task_completed'
+        else:
+            operation = 'task_failed'
+
+        # PUT /tasks/owner/{owner_name}/queue/{queue_id}/executor/{executor_id}/job/{job_id}/task/{task_name}/task_completed
+        request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/job/%s/task/%s/%s" % (
+                                                                self.jess_server.strip('/'),
+                                                                self.jt_account,
+                                                                self.queue,
+                                                                self.executor_id,
+                                                                job_id,
+                                                                task_name,
+                                                                operation
+                                                                )
+        try:
+            r = requests.put(url=request_url, json=output)
+        except:
+            raise JessNotAvailable('JESS service temporarily unavailable')
+
+        if r.status_code != 200:
+            raise Exception('Error occurred: %s' % r.text)
+
+        rv = r.text if r.text else '{}'
+        return json.loads(rv)
+
+    def task_completed(self, job_id, task_name, output=None):
+        self._task_ended(job_id, task_name, output=output, success=True)
+
+    def task_failed(self, job_id, task_name, output):
+        self._task_ended(job_id, task_name, output=output, success=False)

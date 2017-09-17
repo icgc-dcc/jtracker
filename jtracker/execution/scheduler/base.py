@@ -1,18 +1,32 @@
+from abc import ABCMeta, abstractproperty
 
 
 class Scheduler(object):
-    def __init__(self):
+    __metaclass__ = ABCMeta
+
+    def __init__(self, queue=None, executor_id=None):
+        self._queue = queue
+        self._executor_id = executor_id
+
+    @property
+    def executor_id(self):
+        return self._executor_id
+
+    @property
+    def queue(self):
+        return self._queue
+
+    def next_task(self, job_state=None):
         pass
 
-    def next_task(self, new_job=False, worker=None, queue=None):
-        if worker is None:
-            worker = dict()
-
-    def has_next_task(self, in_jobs: str=()):
+    def has_next_task(self):
         pass
 
-    def running_tasks(self, in_jobs: str=()):
+    def running_jobs(self):
         pass
 
-    def running_jobs(self, in_jobs: str=()):
+    def task_completed(self, job_id, task_name, output):
+        pass
+
+    def task_failed(self, job_id, task_name, output):
         pass

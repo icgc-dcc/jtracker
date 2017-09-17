@@ -59,5 +59,18 @@ class Worker(object):
             }
         }
 
-        self._task = None
-        self.scheduler.task_complete(output)
+        success = True if random() > 0.5 else False
+        job_id = self.task.get('job.id')
+        task_name = self.task.get('name')
+        if success:
+            #print('Task completed, task: %s, job: %s' % (task_name, job_id))
+            self.scheduler.task_completed(job_id=job_id,
+                                          task_name=task_name,
+                                          output=output)
+            exit(0)
+        else:
+            #print('Task failed, task: %s, job: %s' % (task_name, job_id))
+            self.scheduler.task_failed(job_id=job_id,
+                                       task_name=task_name,
+                                       output=output)
+            exit(1)
