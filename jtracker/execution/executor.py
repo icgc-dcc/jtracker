@@ -280,8 +280,9 @@ class Executor(object):
                 break
 
             if self.max_jobs and self.ran_jobs >= self.max_jobs:
-                click.echo('A total of %s job(s) have reached, relevant tasks are either finished or scheduled, '
-                           'executor will exit when running tasks finish...' % self.max_jobs)
+                job_count_text = 'job has' if self.max_jobs == 1 else 'jobs have'
+                click.echo('Total number of executed %s reached %s, relevant tasks are either finished or scheduled, '
+                           'executor will exit after running tasks finish ...' % (job_count_text, self.max_jobs))
                 break
 
             if self.scheduler.running_jobs() and len(self.scheduler.running_jobs()) >= self.parallel_jobs:
@@ -289,7 +290,8 @@ class Executor(object):
                 # detail: we need to worry about possible run-away job, job appears to be running but worker died
                 #         already, is that possible if executor is still alive? Can executor report the state of a
                 #         task ran by a worker whose process exited with error?
-                click.echo('Reached limit for parallel running jobs, will start new job after completing current job.')
+                click.echo('Reached limit for parallel running jobs, will start new job after completing a current job.')
+
                 sleep(self.sleep_interval)
                 continue
 
@@ -333,9 +335,6 @@ class Executor(object):
                             p.join(timeout=0.1)
 
                 click.echo('Number of tasks running locally: %s' % running_workers)
-                # TODO: TO BE REMOVED! TEMP way to mimic completion of scheduling all tasks for the running jobs
-                if running_workers < 2:
-                    break
 
                 if running_workers < self.parallel_workers:
                     worker = Worker(jt_home=self.jt_home, scheduler=self.scheduler, node_id=self.node_id)
@@ -369,5 +368,5 @@ class Executor(object):
                 if p.is_alive():
                     p.join()
 
-                    # TODO: call server to mark executor terminated
-                    # report summary about completed jobs and running jobs if any
+        # TODO: call server to mark this executor terminated
+        # report summary about completed jobs and running jobs if any

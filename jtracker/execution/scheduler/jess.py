@@ -22,10 +22,13 @@ class JessScheduler(Scheduler):
     def jt_account(self):
         return self._jt_account
 
-    def running_jobs(self, in_jobs: str = ()):
+    def running_jobs(self, state='running'):
         # call JESS endpoint: /jobs/owner/{owner_name}/queue/{queue_id}/executor/{executor_id}
         request_url = "%s/jobs/owner/%s/queue/%s/executor/%s" % (self.jess_server.strip('/'),
                                                                  self.jt_account, self.queue, self.executor_id)
+
+        if state:
+            request_url += '?state=%s' % state
 
         try:
             r = requests.get(url=request_url)
@@ -37,10 +40,33 @@ class JessScheduler(Scheduler):
 
         return json.loads(r.text)
 
-    def has_next_task(self):
-        return True
+    def has_next_task(self, job_id=None, job_state=None):
+        request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/has_next_task" % (
+                                                                self.jess_server.strip('/'),
+                                                                self.jt_account,
+                                                                self.queue,
+                                                                self.executor_id
+                                                                )
+        # job_id is ignored for now
 
-    def next_task(self, job_state=None):
+        if job_state:
+            request_url += '?job_state=%s' % job_state
+
+        try:
+            r = requests.get(url=request_url)
+        except:
+            raise JessNotAvailable('JESS service temporarily unavailable')
+
+        if 'true' in r.text.lower():
+            return True
+        elif 'false' in r.text.lower():
+            return False
+        else:
+            return False
+
+    def next_task(self, job_id=None, job_state=None):
+        # job_id is ignored for now
+
         # GET /tasks/owner/{owner_name}/queue/{queue_id}/next_task
         request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/next_task" % (
                                                                 self.jess_server.strip('/'),

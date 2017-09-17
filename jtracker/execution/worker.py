@@ -32,7 +32,7 @@ class Worker(object):
         return self._task
 
     def next_task(self, job_state=None):
-        self._task = self.scheduler.next_task(job_state)
+        self._task = self.scheduler.next_task(job_state=job_state)
         return self.task
 
     def run(self, retry=0):
@@ -59,17 +59,19 @@ class Worker(object):
             }
         }
 
-        success = True if random() > 0.5 else False
+        # need to report success properly
+        success = True if random() > 0.1 else False
+
         job_id = self.task.get('job.id')
         task_name = self.task.get('name')
         if success:
-            #print('Task completed, task: %s, job: %s' % (task_name, job_id))
+            print('Task completed, task: %s, job: %s' % (task_name, job_id))
             self.scheduler.task_completed(job_id=job_id,
                                           task_name=task_name,
                                           output=output)
             exit(0)
         else:
-            #print('Task failed, task: %s, job: %s' % (task_name, job_id))
+            print('Task failed, task: %s, job: %s' % (task_name, job_id))
             self.scheduler.task_failed(job_id=job_id,
                                        task_name=task_name,
                                        output=output)
