@@ -38,7 +38,12 @@ class JessScheduler(Scheduler):
         if r.status_code != 200:
             raise Exception('Unable to schedule new task')
 
-        return json.loads(r.text)
+        try:
+            jobs = json.loads(r.text)
+        except:
+            jobs = []
+
+        return jobs
 
     def has_next_task(self, job_id=None, job_state=None):
         request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/has_next_task" % (

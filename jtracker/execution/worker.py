@@ -41,7 +41,7 @@ class Worker(object):
             raise Exception("Must first get a task before calling 'run'")
 
         print('Worker starts to work on task: %s in job: %s' % (self.task.get('name'), self.task.get('job.id')))
-        sleep(random() * 30)
+        sleep(random() * 60)
 
         # TODO: worker completes the task then reports back to server
         output = {

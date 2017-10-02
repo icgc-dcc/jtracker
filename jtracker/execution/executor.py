@@ -37,9 +37,10 @@ def work(worker):
 
 
 class Executor(object):
-    def __init__(self, jt_home=None,
+    def __init__(self, jt_home=None, jt_account=None,
                  ams_server=None, wrs_server=None, jess_server=None,
-                 queue=None,
+                 executor_id=None,
+                 queue_id=None,
                  workflow_name=None,
                  workflow_file=None,
                  job_file=None,  # when job_file is provided, it's local mode, no tracking from the server side
@@ -48,12 +49,16 @@ class Executor(object):
 
         self._scheduler = None
         self._killer = GracefulKiller()
-        self._id = str(uuid4())
+        # allow user specify executor_id for resuming,
+        # TODO: has to check to make sure there is no such executor currently running
+        #       need some server side work to support this
+        self._id = executor_id if executor_id else str(uuid4())
         self._jt_home = jt_home
+        self._jt_account = jt_account
         self._ams_server = ams_server
         self._wrs_server = wrs_server
         self._jess_server = jess_server
-        self._queue = queue
+        self._queue = queue_id
         self._job_id = job_id
         self._job_file = job_file
         self._workflow_file = workflow_file
@@ -76,8 +81,6 @@ class Executor(object):
 
     def _init_jt_home(self):
         # TODO: read from config under jt_home, if config not exist create one
-        # hard code account for now
-        self._jt_account = 'icgc-dcc'
 
         # get node id
         self._node_id = str(uuid4())

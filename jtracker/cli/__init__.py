@@ -46,7 +46,8 @@ def config(ctx):
 
 
 @main.command()
-@click.option('-q', '--queue', help='Job queue ID')
+@click.option('-q', '--queue-id', help='Job queue ID')
+@click.option('-e', '--executor-id', help='Specify executor ID to resume interrupted execution')
 @click.option('-w', '--workflow-name', help='Workflow full name, eg, [{owner}/]{workflow}:{ver}')
 @click.option('-n', '--n-workers', type=int, default=2, help='Max number of parallel workers')
 @click.option('-m', '--n-jobs', type=int, default=1, help='Max number of parallel running jobs')
@@ -56,19 +57,23 @@ def config(ctx):
 @click.option('-f', '--workflow-file', type=click.Path(exists=True), help='Use local workflow file')
 @click.option('-c', '--continuous-run', is_flag=True, help='Keep executor running even job queue is empty')
 @click.pass_context
-def executor(ctx, job_file, job_id, queue, workflow_name, workflow_file, n_jobs, m_jobs, n_workers, continuous_run):
+def executor(ctx, job_file, job_id, queue_id, executor_id,
+             workflow_name, workflow_file,
+             n_jobs, m_jobs, n_workers, continuous_run):
     """
     Launch JTracker Executor
     """
     jt_executor = None
     try:
         jt_executor = Executor(jt_home=ctx.obj['JT_CONFIG'].get('jt_home'),
+                               jt_account=ctx.obj['JT_CONFIG'].get('jt_account'),
                                ams_server=ctx.obj['JT_CONFIG'].get('ams_server'),
                                wrs_server=ctx.obj['JT_CONFIG'].get('wrs_server'),
                                jess_server=ctx.obj['JT_CONFIG'].get('jess_server'),
                                job_file=job_file,
                                job_id=job_id,
-                               queue=queue,
+                               executor_id=executor_id,
+                               queue_id=queue_id,
                                workflow_name=workflow_name,
                                workflow_file=workflow_file,
                                parallel_jobs=n_jobs,
