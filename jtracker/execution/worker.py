@@ -1,6 +1,7 @@
-from time import sleep
+from time import sleep, time
 from uuid import uuid4
 from random import random
+from .. import __version__ as ver
 
 
 class Worker(object):
@@ -40,22 +41,31 @@ class Worker(object):
         if not self.task:
             raise Exception("Must first get a task before calling 'run'")
 
+        # TODO: will need to make params containing placeholder replaced by output params from the dependent task
+
+
+        time_start = int(time())
+
         print('Worker starts to work on task: %s in job: %s' % (self.task.get('name'), self.task.get('job.id')))
         sleep(random() * 60)
 
+        time_end = int(time())
+
+        _jt_ = {
+            'jtcli_version': ver,
+            'work_id': self.id,
+            'executor_id': self.executor_id,
+            'node_id': self.node_id,
+            'wall_time': {
+                'start': time_start,
+                'end': time_end
+            }
+        }
+
         # TODO: worker completes the task then reports back to server
         output = {
-            'worker': {
-                'id': self.id,
-                'executor_id': self.executor_id,
-                'node_id': self.node_id
-            },
-            'run_stats': {
-                'start': 233,
-                'end': 23232
-            },
+            '_jt_': _jt_,
             'output': {
-
             }
         }
 
