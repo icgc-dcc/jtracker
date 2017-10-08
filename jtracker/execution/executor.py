@@ -41,7 +41,6 @@ class Executor(object):
                  ams_server=None, wrs_server=None, jess_server=None,
                  executor_id=None,
                  queue_id=None,
-                 workflow_name=None,
                  workflow_file=None,
                  job_file=None,  # when job_file is provided, it's local mode, no tracking from the server side
                  job_id=None,  # can optionally specify which job to run, not applicable when job_file specified
@@ -54,15 +53,18 @@ class Executor(object):
         #       need some server side work to support this
         self._id = executor_id if executor_id else str(uuid4())
         self._jt_home = jt_home
+
+        # params for server mode
+        self._queue_id = queue_id
+        self._job_id = job_id  # optionally specify which job to run
         self._jt_account = jt_account
         self._ams_server = ams_server
         self._wrs_server = wrs_server
         self._jess_server = jess_server
-        self._queue = queue_id
-        self._job_id = job_id
-        self._job_file = job_file
-        self._workflow_file = workflow_file
-        self._workflow_name = workflow_name
+
+        self._job_file = job_file  # local mode if supplied
+        self._workflow_file = workflow_file  # may be supplied in local mode
+
         self._parallel_jobs = parallel_jobs
         self._max_jobs = max_jobs
         self._parallel_workers = parallel_workers
@@ -77,7 +79,7 @@ class Executor(object):
         self._validate_and_setup()
 
         # TODO: check whether workflow package has already downloaded
-        # TODO: check whether previous executor session exists, restore it unless uesr chose not to (via options)
+        # TODO: check whether previous executor session exists, restore it unless user chose not to (via options)
 
     def _init_jt_home(self):
         # TODO: read from config under jt_home, if config not exist create one
@@ -88,9 +90,9 @@ class Executor(object):
     def _validate_and_setup(self):
         # if job_file specified, ignore job queue and job id
         if self.job_file:  # local mode
-            if self.queue:
+            if self.queue_id:
                 click.echo('Local job file supplied, specified job queue ignored.')
-                self._queue = None
+                self._queue_id = None
             if self.job_id:
                 click.echo('Local job file supplied, specified job id ignored.')
                 self._job_id = None
@@ -121,26 +123,17 @@ class Executor(object):
                 click.echo("Execute jobs registered on the server, ignore supplied local workflow file.")
                 self._workflow_file = None
 
-            if not (self.queue or self.workflow_name):
-                raise Exception("Must specify queue ID or workflow name.")
-            elif self.queue and self.workflow_name:
-                workflow_name = self.get_workflow_name_by_queue(queue_id=self.queue)
-                if not workflow_name:
-                    raise Exception("Specified queue does not exist.")
-                if workflow_name != self.workflow_name:
-                    raise Exception(
-                        "Specified workflow name was not registered for the specified job queue, no job to run.")
-            elif self.workflow_name:
-                queues = self.get_queue_by_workflow_name(workflow_name=self.workflow_name)
-                if not queues:
-                    raise Exception("Specified workflow has not been assigned to any job queue.")
-                if len(queues) > 1:
-                    raise Exception(
-                        "Specified workflow has been assigned to multiple job queues, please specify a job queue.")
-            else:  # now must have queue specified
-                workflow_name = self.get_workflow_name_by_queue(queue_id=self.queue)
-                if not workflow_name:
-                    raise Exception("Specified queue does not exist.")
+            # get the scheduler
+            self._scheduler = JessScheduler(jess_server=self.jess_server,
+                                            jt_account=self.jt_account,
+                                            queue_id=self.queue_id,
+                                            executor_id=self.id)
+
+            workflow_name = self.scheduler.get_workflow_name()
+            if not workflow_name:
+                raise Exception("Specified queue_id does not exist.")
+            else:
+                self._workflow_name = workflow_name
 
             # now we have a specific job queue to execute jobs
             click.echo('Executor: %s started to work on remote jobs.' % self.id)
@@ -202,8 +195,8 @@ class Executor(object):
         return self._jess_server
 
     @property
-    def queue(self):
-        return self._queue
+    def queue_id(self):
+        return self._queue_id
 
     @property
     def parallel_jobs(self):
@@ -229,20 +222,15 @@ class Executor(object):
     def continuous_run(self):
         return self._continuous_run
 
-
     @property
     def worker_processes(self):
         return self._worker_processes
 
-    def get_workflow_name_by_queue(self, queue_id=None):
-        jess_server = self.jess_server
-        # to be implemented
-        return jess_server
-
     def get_workflow_file_by_name(self, workflow_name=None):
         wrs_server = self.wrs_server
         # to be implemented
-        return wrs_server
+
+        return
 
     def get_queue_by_workflow_name(self, workflow_name=None):
         return
@@ -255,7 +243,7 @@ class Executor(object):
             'id': self.id  # only ID field for now
         }
 
-        request_url = "%s/executors/owner/%s/queue/%s" % (self.jess_server.strip('/'), self.jt_account, self.queue)
+        request_url = "%s/executors/owner/%s/queue/%s" % (self.jess_server.strip('/'), self.jt_account, self.queue_id)
 
         try:
             r = requests.post(url=request_url, json=executor)
@@ -281,9 +269,6 @@ class Executor(object):
         #       and test whether it's resumeable
         self._register_executor()
 
-        # get the scheduler
-        self._scheduler = JessScheduler(jess_server=self.jess_server,
-                                        jt_account=self.jt_account, queue=self.queue, executor_id=self.id)
         while True:
             if self.killer.kill_now:
                 click.echo('Received interruption signal, will not pick up new job. Exit after finishing current '

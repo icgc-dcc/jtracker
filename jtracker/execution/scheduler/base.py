@@ -4,8 +4,8 @@ from abc import ABCMeta, abstractproperty
 class Scheduler(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, queue=None, executor_id=None):
-        self._queue = queue
+    def __init__(self, queue_id=None, executor_id=None):
+        self._queue_id = queue_id
         self._executor_id = executor_id
 
     @property
@@ -13,8 +13,8 @@ class Scheduler(object):
         return self._executor_id
 
     @property
-    def queue(self):
-        return self._queue
+    def queue_id(self):
+        return self._queue_id
 
     def next_task(self, job_state=None):
         pass

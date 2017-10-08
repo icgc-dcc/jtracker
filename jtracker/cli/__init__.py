@@ -48,7 +48,6 @@ def config(ctx):
 @main.command()
 @click.option('-q', '--queue-id', help='Job queue ID')
 @click.option('-e', '--executor-id', help='Specify executor ID to resume interrupted execution')
-@click.option('-w', '--workflow-name', help='Workflow full name, eg, [{owner}/]{workflow}:{ver}')
 @click.option('-n', '--n-workers', type=int, default=2, help='Max number of parallel workers')
 @click.option('-m', '--n-jobs', type=int, default=1, help='Max number of parallel running jobs')
 @click.option('-x', '--m-jobs', type=int, default=0, help='Max number of jobs to be run by the executor')
@@ -58,8 +57,7 @@ def config(ctx):
 @click.option('-c', '--continuous-run', is_flag=True, help='Keep executor running even job queue is empty')
 @click.pass_context
 def executor(ctx, job_file, job_id, queue_id, executor_id,
-             workflow_name, workflow_file,
-             n_jobs, m_jobs, n_workers, continuous_run):
+             workflow_file, n_jobs, m_jobs, n_workers, continuous_run):
     """
     Launch JTracker Executor
     """
@@ -74,7 +72,6 @@ def executor(ctx, job_file, job_id, queue_id, executor_id,
                                job_id=job_id,
                                executor_id=executor_id,
                                queue_id=queue_id,
-                               workflow_name=workflow_name,
                                workflow_file=workflow_file,
                                parallel_jobs=n_jobs,
                                max_jobs=m_jobs,

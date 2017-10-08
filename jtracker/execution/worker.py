@@ -10,6 +10,7 @@ class Worker(object):
         self._node_id = node_id
         self._scheduler = scheduler
         self._executor_id = self.scheduler.executor_id
+        self._queue_id = self.scheduler.queue_id
         self._task = None
 
     @property
@@ -19,6 +20,10 @@ class Worker(object):
     @property
     def executor_id(self):
         return self._executor_id
+
+    @property
+    def queue_id(self):
+        return self._queue_id
 
     @property
     def node_id(self):
@@ -52,8 +57,9 @@ class Worker(object):
 
         _jt_ = {
             'jtcli_version': ver,
-            'work_id': self.id,
+            'worker_id': self.id,
             'executor_id': self.executor_id,
+            'queue_id': self.queue_id,
             'node_id': self.node_id,
             'wall_time': {
                 'start': time_start,

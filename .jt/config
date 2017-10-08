@@ -1,4 +1,4 @@
-jt_home: ~/jtracker
+jt_home: ~/jthome
 jt_account: junjun-zhang
 ams_server: http://localhost:12012/api/jt-ams/v0.1
 wrs_server: http://localhost:12015/api/jt-wrs/v0.1

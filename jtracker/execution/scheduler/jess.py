@@ -1,7 +1,7 @@
-from .base import Scheduler
 import requests
 import json
 from jtracker.exceptions import JessNotAvailable
+from .base import Scheduler
 
 
 class JessScheduler(Scheduler):
@@ -9,8 +9,8 @@ class JessScheduler(Scheduler):
     Scheduler backed by JTracker Job Execution and Scheduling Services
     """
 
-    def __init__(self, jess_server=None, jt_account=None, queue=None, executor_id: str = None):
-        super().__init__(queue=queue, executor_id=executor_id)
+    def __init__(self, jess_server=None, jt_account=None, queue_id=None, executor_id: str = None):
+        super().__init__(queue_id=queue_id, executor_id=executor_id)
         self._jess_server = jess_server
         self._jt_account = jt_account
 
@@ -22,10 +22,28 @@ class JessScheduler(Scheduler):
     def jt_account(self):
         return self._jt_account
 
+    def get_workflow_name(self):
+        request_url = "%s/queues/owner/%s/queue/%s" % (self.jess_server.strip('/'),
+                                                       self.jt_account, self.queue_id)
+
+        try:
+            r = requests.get(url=request_url)
+        except:
+            raise JessNotAvailable('JESS service temporarily unavailable')
+
+        try:
+            queue = json.loads(r.text)
+            workflow_name = "%s.%s:%s" % (queue.get('workflow_owner.name'),
+                                          queue.get('workflow.name'),
+                                          queue.get('workflow.ver'))
+            return workflow_name
+        except:
+            return
+
     def running_jobs(self, state='running'):
         # call JESS endpoint: /jobs/owner/{owner_name}/queue/{queue_id}/executor/{executor_id}
         request_url = "%s/jobs/owner/%s/queue/%s/executor/%s" % (self.jess_server.strip('/'),
-                                                                 self.jt_account, self.queue, self.executor_id)
+                                                                 self.jt_account, self.queue_id, self.executor_id)
 
         if state:
             request_url += '?state=%s' % state
@@ -49,7 +67,7 @@ class JessScheduler(Scheduler):
         request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/has_next_task" % (
                                                                 self.jess_server.strip('/'),
                                                                 self.jt_account,
-                                                                self.queue,
+                                                                self.queue_id,
                                                                 self.executor_id
                                                                 )
 
@@ -72,7 +90,7 @@ class JessScheduler(Scheduler):
         request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/next_task" % (
                                                                 self.jess_server.strip('/'),
                                                                 self.jt_account,
-                                                                self.queue,
+                                                                self.queue_id,
                                                                 self.executor_id
                                                                 )
 
@@ -103,7 +121,7 @@ class JessScheduler(Scheduler):
         request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/job/%s/task/%s/%s" % (
                                                                 self.jess_server.strip('/'),
                                                                 self.jt_account,
-                                                                self.queue,
+                                                                self.queue_id,
                                                                 self.executor_id,
                                                                 job_id,
                                                                 task_name,
