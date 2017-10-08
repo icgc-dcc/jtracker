@@ -87,7 +87,6 @@ def executor(ctx, job_file, job_id, queue_id, executor_id,
         ctx.abort()
 
     if jt_executor:
-        click.echo('Starting executor ...')
         jt_executor.run()
 
 

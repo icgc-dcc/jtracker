@@ -45,17 +45,13 @@ class JessScheduler(Scheduler):
 
         return jobs
 
-    def has_next_task(self, job_id=None, job_state=None):
+    def has_next_task(self):
         request_url = "%s/tasks/owner/%s/queue/%s/executor/%s/has_next_task" % (
                                                                 self.jess_server.strip('/'),
                                                                 self.jt_account,
                                                                 self.queue,
                                                                 self.executor_id
                                                                 )
-        # job_id is ignored for now
-
-        if job_state:
-            request_url += '?job_state=%s' % job_state
 
         try:
             r = requests.get(url=request_url)

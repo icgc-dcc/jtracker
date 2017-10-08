@@ -43,7 +43,6 @@ class Worker(object):
 
         # TODO: will need to make params containing placeholder replaced by output params from the dependent task
 
-
         time_start = int(time())
 
         print('Worker starts to work on task: %s in job: %s' % (self.task.get('name'), self.task.get('job.id')))

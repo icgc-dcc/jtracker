@@ -110,7 +110,8 @@ class Executor(object):
                 else:
                     raise Exception("Specified workflow not registered.")
 
-                    # now we have local job_file and workflow_file, ready to perform local execution
+            # now we have local job_file and workflow_file, ready to perform local execution
+            click.echo('Executor: %s started in local mode.' % self.id)
 
         else:  # server mode
             if not (self.ams_server and self.wrs_server and self.jess_server):
@@ -141,7 +142,8 @@ class Executor(object):
                 if not workflow_name:
                     raise Exception("Specified queue does not exist.")
 
-                    # now we have a specific job queue to execute jobs
+            # now we have a specific job queue to execute jobs
+            click.echo('Executor: %s started to work on remote jobs.' % self.id)
 
     @property
     def killer(self):
