@@ -62,11 +62,16 @@ class Worker(object):
         }
 
         # TODO: worker completes the task then reports back to server
+        # fake output params for now, executor will need to install workflow package to find out output params
         output = {
-            '_jt_': _jt_,
-            'output': {
-            }
+            'xml_file_size': 2323,
+            'xml_file_name': 'abc.xml',
+            'xml_file_md5sum': 'dafa',
+            'xml_file': '/test/dada.xml',
+            'file': '/test/dada.bam'
         }
+
+        output.update({'_jt_': _jt_})
 
         # need to report success properly
         success = True if random() > 0.01 else False
