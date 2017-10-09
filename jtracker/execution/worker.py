@@ -1,4 +1,7 @@
 import os
+import errno
+import subprocess
+import json
 from time import sleep, time
 from uuid import uuid4
 from random import random
@@ -78,14 +81,29 @@ class Worker(object):
         if not self.task:
             raise Exception("Must first get a task before calling 'run'")
 
-        # TODO: will need to make params containing placeholder replaced by output params from the dependent task
+        self._init_task_dir()
 
         time_start = int(time())
 
         print('Worker starts to work on task: %s in job: %s' % (self.task.get('name'), self.task.get('job.id')))
-        sleep(random() * 60)
+
+        cmd = "PATH=%s:$PATH %s" % (os.path.join(self.workflow_dir, 'workflow', 'tools'),
+                                    json.loads(self.task.get('task_file')).get('command'))
+
+        arg = "'%s'" % self.task.get('task_file') if self.task else ''
+
+        success = True  # assume task complete
+        try:
+            #print("task command is: %s %s" % (cmd, arg))
+            r = subprocess.check_output("%s %s" % (cmd, arg), shell=True)
+        except Exception as e:
+            success = False  # task failed
 
         time_end = int(time())
+
+        # get output.json
+        with open(os.path.join(self.task_dir, 'output.json'), 'r') as f:
+            output = json.load(f)
 
         _jt_ = {
             'jtcli_version': ver,
@@ -101,20 +119,17 @@ class Worker(object):
             }
         }
 
-        # TODO: worker completes the task then reports back to server
-        # fake output params for now, executor will need to install workflow package to find out output params
-        output = {
+        output.update({'_jt_': _jt_})
+
+        # use this to test
+        fake_output = {
             'xml_file_size': 2323,
             'xml_file_name': 'abc.xml',
             'xml_file_md5sum': 'dafa',
             'xml_file': '/test/dada.xml',
             'file': '/test/dada.bam'
         }
-
-        output.update({'_jt_': _jt_})
-
-        # need to report success properly
-        success = True if random() > 0.01 else False
+        output.update(fake_output)
 
         job_id = self.task.get('job.id')
         task_name = self.task.get('name')
@@ -130,3 +145,12 @@ class Worker(object):
                                        task_name=task_name,
                                        output=output)
             exit(1)
+
+    def _init_task_dir(self):
+        try:
+            os.makedirs(self.task_dir)
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+
+        os.chdir(self.task_dir)

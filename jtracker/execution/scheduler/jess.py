@@ -145,7 +145,7 @@ class JessScheduler(Scheduler):
         except:
             raise JessNotAvailable('JESS service temporarily unavailable')
 
-        if r.status_code != 200:
+        if r.status_code != 200:  # need a special response for failed job
             raise Exception('Unable to schedule new task')
 
         rv = r.text if r.text else '{}'
