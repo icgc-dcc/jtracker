@@ -4,17 +4,12 @@ from abc import ABCMeta, abstractproperty
 class Scheduler(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, queue_id=None, executor_id=None):
-        self._queue_id = queue_id
-        self._executor_id = executor_id
+    def __init__(self, mode=None):
+        self._mode = mode
 
     @property
-    def executor_id(self):
-        return self._executor_id
-
-    @property
-    def queue_id(self):
-        return self._queue_id
+    def mode(self):
+        return self._mode
 
     def next_task(self, job_state=None):
         pass

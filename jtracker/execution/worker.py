@@ -7,6 +7,7 @@ from .. import __version__ as ver
 class Worker(object):
     def __init__(self, jt_home=None, scheduler=None, node_id=None):
         self._id = str(uuid4())
+        self._jt_home = jt_home
         self._node_id = node_id
         self._scheduler = scheduler
         self._executor_id = self.scheduler.executor_id

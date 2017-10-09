@@ -1,5 +1,6 @@
 import requests
 import json
+from functools import lru_cache
 from jtracker.exceptions import JessNotAvailable
 from .base import Scheduler
 
@@ -8,21 +9,51 @@ class JessScheduler(Scheduler):
     """
     Scheduler backed by JTracker Job Execution and Scheduling Services
     """
+    def __init__(self, jess_server=None, wrs_server=None, ams_server=None, jt_account=None,
+                 queue_id=None, job_id=None, executor_id: str = None):
 
-    def __init__(self, jess_server=None, jt_account=None, queue_id=None, executor_id: str = None):
-        super().__init__(queue_id=queue_id, executor_id=executor_id)
+        super().__init__(mode='sever')
+
         self._jess_server = jess_server
+        self._wrs_server = wrs_server,
+        self._ams_server = ams_server,
         self._jt_account = jt_account
+        self._queue_id = queue_id
+        self._job_id = job_id
+        self._executor_id = executor_id
+        self._register_executor()
 
     @property
     def jess_server(self):
         return self._jess_server
 
     @property
+    def wrs_server(self):
+        return self._wrs_server
+
+    @property
+    def ams_server(self):
+        return self._ams_server
+
+    @property
     def jt_account(self):
         return self._jt_account
 
-    def get_workflow_name(self):
+    @property
+    def queue_id(self):
+        return self._queue_id
+
+    @property
+    def job_id(self):
+        return self._job_id
+
+    @property
+    def executor_id(self):
+        return self._executor_id
+
+    @property
+    @lru_cache(maxsize=None)
+    def workflow_name(self):
         request_url = "%s/queues/owner/%s/queue/%s" % (self.jess_server.strip('/'),
                                                        self.jt_account, self.queue_id)
 
@@ -33,12 +64,12 @@ class JessScheduler(Scheduler):
 
         try:
             queue = json.loads(r.text)
-            workflow_name = "%s.%s:%s" % (queue.get('workflow_owner.name'),
-                                          queue.get('workflow.name'),
-                                          queue.get('workflow.ver'))
-            return workflow_name
         except:
-            return
+            raise Exception('Specified Job Queue does not exist')
+
+        return "%s.%s:%s" % (queue.get('workflow_owner.name'),
+                             queue.get('workflow.name'),
+                             queue.get('workflow.ver'))
 
     def running_jobs(self, state='running'):
         # call JESS endpoint: /jobs/owner/{owner_name}/queue/{queue_id}/executor/{executor_id}
@@ -143,3 +174,20 @@ class JessScheduler(Scheduler):
 
     def task_failed(self, job_id, task_name, output):
         self._task_ended(job_id, task_name, output=output, success=False)
+
+    def _register_executor(self):
+        # JESS endpoint: /executors/owner/{owner_name}/queue/{queue_id}
+        # later we should really get executor dict by self.to_dict, dict version of the executor object
+        executor = {
+            'id': self.executor_id  # only ID field for now
+        }
+
+        request_url = "%s/executors/owner/%s/queue/%s" % (self.jess_server.strip('/'), self.jt_account, self.queue_id)
+
+        try:
+            r = requests.post(url=request_url, json=executor)
+        except:
+            raise JessNotAvailable('JESS service temporarily unavailable')
+
+        if r.status_code != 200:
+            raise Exception('Failed to register the executor, please make sure it has not been registered before')
