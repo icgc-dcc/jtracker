@@ -1,3 +1,4 @@
+import os
 import yaml
 
 
@@ -10,11 +11,14 @@ class Config(object):
             except:
                 raise "Couldn't open config file: %s" % config_file
         else:  # otherwise default configuration is used
-            self._dict = {
-                'jt_home': '~/jtracker'
-            }
+            raise Exception("Must provide configuration YAML file")
+
+        # some validation
+        if 'jt_home' not in self.dict:
+            raise Exception("Config file: %s must set 'jt_home'" % config_file)
+        elif not os.path.isabs(self.dict.get('jt_home')):
+            raise Exception("'jt_home' in config: %s must be set with absolute path" % config_file)
 
     @property
     def dict(self):
         return self._dict
-

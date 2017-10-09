@@ -1,16 +1,14 @@
+import os
+import errno
+import yaml
 import click
 import signal
 import multiprocessing
 from time import sleep
-import random
-import requests
 from uuid import uuid4
-from ..core import Workflow  # needed for running local job
-from ..core import Job  # needed for running local job
 from .scheduler import JessScheduler
 from .scheduler import LocalScheduler
 from .worker import Worker
-from jtracker.exceptions import JessNotAvailable
 
 
 class GracefulKiller:
@@ -87,12 +85,6 @@ class Executor(object):
 
         # TODO: check whether workflow package has already downloaded
         # TODO: check whether previous executor session exists, restore it unless user chose not to (via options)
-
-    def _init_jt_home(self):
-        # TODO: read from config under jt_home, if config not exist create one
-
-        # get node id
-        self._node_id = str(uuid4())
 
     @property
     def killer(self):
@@ -284,3 +276,23 @@ class Executor(object):
                     running_workers += 1
                     p.join(timeout=0.1)
         return running_jobs, running_workers
+
+    def _init_jt_home(self):
+        # initial it if needed
+        node_info_file = os.path.join(self.jt_home, 'node', 'info.yaml')
+
+        if os.path.isfile(node_info_file):
+            with open(node_info_file, 'r') as f:
+                node_info = yaml.load(f)
+        else:  # not exist
+            node_info = {'id': str(uuid4())}  # may need to add other information
+            try:
+                print(os.path.dirname(node_info_file))
+                os.makedirs(os.path.dirname(node_info_file))
+            except OSError as exc:  # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
+            with open(node_info_file, "w") as f:
+                f.write(yaml.dump(node_info, default_flow_style=False))
+
+        self._node_id = node_info.get('id')

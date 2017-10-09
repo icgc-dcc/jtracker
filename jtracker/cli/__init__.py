@@ -26,7 +26,11 @@ def print_version(ctx, param, value):
 @click.pass_context
 def main(ctx, config_file):
     # initialize configuration from config_file
-    jt_config = Config(config_file).dict
+    try:
+        jt_config = Config(config_file).dict
+    except Exception as err:
+        click.echo(str(err))
+        ctx.abort()
 
     # initializing ctx.obj
     ctx.obj = {

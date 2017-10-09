@@ -10,8 +10,6 @@ class Worker(object):
         self._jt_home = jt_home
         self._node_id = node_id
         self._scheduler = scheduler
-        self._executor_id = self.scheduler.executor_id
-        self._queue_id = self.scheduler.queue_id
         self._task = None
 
     @property
@@ -20,11 +18,15 @@ class Worker(object):
 
     @property
     def executor_id(self):
-        return self._executor_id
+        return self.scheduler.executor_id
 
     @property
     def queue_id(self):
-        return self._queue_id
+        return self.scheduler.queue_id
+
+    @property
+    def workflow_id(self):
+        return self.scheduler.workflow_id
 
     @property
     def node_id(self):
@@ -60,6 +62,7 @@ class Worker(object):
             'jtcli_version': ver,
             'worker_id': self.id,
             'executor_id': self.executor_id,
+            'workflow_id': self.workflow_id,
             'queue_id': self.queue_id,
             'node_id': self.node_id,
             'wall_time': {

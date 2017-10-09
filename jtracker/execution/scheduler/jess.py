@@ -1,6 +1,5 @@
 import requests
 import json
-from functools import lru_cache
 from jtracker.exceptions import JessNotAvailable
 from .base import Scheduler
 
@@ -21,6 +20,7 @@ class JessScheduler(Scheduler):
         self._queue_id = queue_id
         self._job_id = job_id
         self._executor_id = executor_id
+        self._get_workflow_info()
         self._register_executor()
 
     @property
@@ -52,8 +52,14 @@ class JessScheduler(Scheduler):
         return self._executor_id
 
     @property
-    @lru_cache(maxsize=None)
     def workflow_name(self):
+        return self._workflow_name
+
+    @property
+    def workflow_id(self):
+        return self._workflow_id
+
+    def _get_workflow_info(self):
         request_url = "%s/queues/owner/%s/queue/%s" % (self.jess_server.strip('/'),
                                                        self.jt_account, self.queue_id)
 
@@ -67,9 +73,10 @@ class JessScheduler(Scheduler):
         except:
             raise Exception('Specified Job Queue does not exist')
 
-        return "%s.%s:%s" % (queue.get('workflow_owner.name'),
-                             queue.get('workflow.name'),
-                             queue.get('workflow.ver'))
+        self._workflow_id = queue.get('workflow.id')
+        self._workflow_name = "%s.%s:%s" % (queue.get('workflow_owner.name'),
+                                            queue.get('workflow.name'),
+                                            queue.get('workflow.ver'))
 
     def running_jobs(self, state='running'):
         # call JESS endpoint: /jobs/owner/{owner_name}/queue/{queue_id}/executor/{executor_id}
@@ -182,7 +189,8 @@ class JessScheduler(Scheduler):
             'id': self.executor_id  # only ID field for now
         }
 
-        request_url = "%s/executors/owner/%s/queue/%s" % (self.jess_server.strip('/'), self.jt_account, self.queue_id)
+        request_url = "%s/executors/owner/%s/queue/%s" % (self.jess_server.strip('/'),
+                                                          self.jt_account, self.queue_id)
 
         try:
             r = requests.post(url=request_url, json=executor)
