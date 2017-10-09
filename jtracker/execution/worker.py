@@ -1,3 +1,4 @@
+import os
 from time import sleep, time
 from uuid import uuid4
 from random import random
@@ -17,6 +18,10 @@ class Worker(object):
         return self._id
 
     @property
+    def jt_home(self):
+        return self._jt_home
+
+    @property
     def executor_id(self):
         return self.scheduler.executor_id
 
@@ -31,6 +36,30 @@ class Worker(object):
     @property
     def node_id(self):
         return self._node_id
+
+    @property
+    def node_dir(self):
+        return os.path.join(self.jt_home, 'node')
+
+    @property
+    def workflow_dir(self):
+        return os.path.join(self.node_dir, 'workflow.%s' % self.workflow_id)
+
+    @property
+    def queue_dir(self):
+        return os.path.join(self.workflow_dir, 'queue.%s' % self.queue_id)
+
+    @property
+    def executor_dir(self):
+        return os.path.join(self.queue_dir, 'executor.%s' % self.executor_id)
+
+    @property
+    def job_dir(self):
+        return os.path.join(self.executor_dir, 'job.%s' % self.task.get('job.id'))
+
+    @property
+    def task_dir(self):
+        return os.path.join(self.job_dir, 'task.%s' % self.task.get('name'))
 
     @property
     def scheduler(self):
@@ -65,6 +94,7 @@ class Worker(object):
             'workflow_id': self.workflow_id,
             'queue_id': self.queue_id,
             'node_id': self.node_id,
+            'task_dir': self.task_dir,
             'wall_time': {
                 'start': time_start,
                 'end': time_end

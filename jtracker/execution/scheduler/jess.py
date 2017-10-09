@@ -1,6 +1,6 @@
 import requests
 import json
-from jtracker.exceptions import JessNotAvailable
+from jtracker.exceptions import JessNotAvailable, WRSNotAvailable
 from .base import Scheduler
 
 
@@ -14,8 +14,8 @@ class JessScheduler(Scheduler):
         super().__init__(mode='sever')
 
         self._jess_server = jess_server
-        self._wrs_server = wrs_server,
-        self._ams_server = ams_server,
+        self._wrs_server = wrs_server
+        self._ams_server = ams_server
         self._jt_account = jt_account
         self._queue_id = queue_id
         self._job_id = job_id
@@ -59,6 +59,10 @@ class JessScheduler(Scheduler):
     def workflow_id(self):
         return self._workflow_id
 
+    @property
+    def workflow_version(self):
+        return self._workflow_version
+
     def _get_workflow_info(self):
         request_url = "%s/queues/owner/%s/queue/%s" % (self.jess_server.strip('/'),
                                                        self.jt_account, self.queue_id)
@@ -74,6 +78,7 @@ class JessScheduler(Scheduler):
             raise Exception('Specified Job Queue does not exist')
 
         self._workflow_id = queue.get('workflow.id')
+        self._workflow_version = queue.get('workflow.ver')
         self._workflow_name = "%s.%s:%s" % (queue.get('workflow_owner.name'),
                                             queue.get('workflow.name'),
                                             queue.get('workflow.ver'))
@@ -181,6 +186,24 @@ class JessScheduler(Scheduler):
 
     def task_failed(self, job_id, task_name, output):
         self._task_ended(job_id, task_name, output=output, success=False)
+
+    def get_workflow(self):
+        request_url = "%s/workflows/id/%s/ver/%s" % (self.wrs_server.strip('/'),
+                                                     self.workflow_id, self.workflow_version)
+
+        try:
+            r = requests.get(url=request_url)
+        except:
+            raise WRSNotAvailable('JESS service temporarily unavailable')
+
+        try:
+            workflow = json.loads(r.text)
+        except:
+            raise Exception('Unable to retrieve workflow, id: %s, version: %s' % (
+                self.workflow_id, self.workflow_version
+            ))
+
+        return workflow
 
     def _register_executor(self):
         # JESS endpoint: /executors/owner/{owner_name}/queue/{queue_id}

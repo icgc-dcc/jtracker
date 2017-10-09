@@ -2,6 +2,7 @@ from .base import Scheduler
 
 
 class LocalScheduler(Scheduler):
+    # TODO: not quite working yet
     def __init__(self, job_file=None, workflow_name=None, executor_id=None):
         super().__init__(mode='local')
 

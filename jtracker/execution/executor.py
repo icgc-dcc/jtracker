@@ -1,4 +1,10 @@
 import os
+import zipfile
+import tempfile
+from io import BytesIO
+import requests
+import shutil
+import subprocess
 import errno
 import yaml
 import click
@@ -51,6 +57,7 @@ class Executor(object):
         self._id = executor_id if executor_id else str(uuid4())
 
         self._jt_home = jt_home
+        self._init_jt_home()
 
         self._parallel_jobs = parallel_jobs
         self._max_jobs = max_jobs
@@ -74,16 +81,23 @@ class Executor(object):
             self._scheduler = LocalScheduler(job_file=job_file,
                                              workflow_name=workflow_name,
                                              executor_id=self.id)
+
         else:
-            raise Exception('Please specify either queue_id for executing jobs on remote job queue or'
+            raise Exception('Please specify either queue_id for executing jobs on remote job queue or '
                             'job_file to run local job.')
 
         self._running_jobs = []
         self._worker_processes = {}
 
-        self._init_jt_home()
+        # init workflow dir
+        self._init_workflow_dir()
 
-        # TODO: check whether workflow package has already downloaded
+        # init queue dir
+        self._init_queue_dir()
+
+        # init executor dir
+        self._init_executor_dir()
+
         # TODO: check whether previous executor session exists, restore it unless user chose not to (via options)
 
     @property
@@ -99,24 +113,32 @@ class Executor(object):
         return self._scheduler
 
     @property
-    def node_id(self):
-        return self._node_id
-
-    @property
     def jt_home(self):
         return self._jt_home
 
     @property
-    def jt_account(self):
-        return self._jt_account
+    def node_id(self):
+        return self._node_id
+
+    @property
+    def node_dir(self):
+        return os.path.join(self.jt_home, 'node')
+
+    @property
+    def workflow_dir(self):
+        return os.path.join(self.node_dir, 'workflow.%s' % self.scheduler.workflow_id)
+
+    @property
+    def queue_dir(self):
+        return os.path.join(self.workflow_dir, 'queue.%s' % self.scheduler.queue_id)
+
+    @property
+    def executor_dir(self):
+        return os.path.join(self.queue_dir, 'executor.%s' % self.scheduler.executor_id)
 
     @property
     def sleep_interval(self):
         return self._sleep_interval
-
-    @property
-    def jess_server(self):
-        return self._jess_server
 
     @property
     def parallel_jobs(self):
@@ -279,7 +301,7 @@ class Executor(object):
 
     def _init_jt_home(self):
         # initial it if needed
-        node_info_file = os.path.join(self.jt_home, 'node', 'info.yaml')
+        node_info_file = os.path.join(self.node_dir,'info.yaml')
 
         if os.path.isfile(node_info_file):
             with open(node_info_file, 'r') as f:
@@ -287,8 +309,7 @@ class Executor(object):
         else:  # not exist
             node_info = {'id': str(uuid4())}  # may need to add other information
             try:
-                print(os.path.dirname(node_info_file))
-                os.makedirs(os.path.dirname(node_info_file))
+                os.makedirs(self.node_dir)
             except OSError as exc:  # Guard against race condition
                 if exc.errno != errno.EEXIST:
                     raise
@@ -296,3 +317,59 @@ class Executor(object):
                 f.write(yaml.dump(node_info, default_flow_style=False))
 
         self._node_id = node_info.get('id')
+
+    def _init_workflow_dir(self):
+        try:
+            os.makedirs(self.workflow_dir)
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+
+        # detect whether workflow has already been installed
+        workflow_installation_flag_file = os.path.join(self.workflow_dir, 'workflow.installed')
+        if os.path.isfile(workflow_installation_flag_file):
+            return
+
+        click.echo('Installing workflow package ...')
+        workflow = self.scheduler.get_workflow()
+
+        git_account = workflow.get('git_account')
+        git_repo = workflow.get('git_repo')
+        git_tag = workflow.get('ver:%s' % self.scheduler.workflow_version).get('git_tag')
+        git_path = workflow.get('ver:%s' % self.scheduler.workflow_version).get('git_path')
+
+        # https://github.com/jthub/jtracker-example-workflows/archive/0.2.0.tar.gz
+        git_download_url = "https://github.com/%s/%s/archive/%s.zip" % (git_account, git_repo, git_tag)
+
+        tmp_dir = tempfile.mkdtemp()
+        request = requests.get(git_download_url)
+        zfile = zipfile.ZipFile(BytesIO(request.content))
+        zfile.extractall(tmp_dir)
+
+        source_workflow_path = os.path.join(tmp_dir, '%s-%s' % (git_repo, git_tag), git_path, 'workflow')
+        source_tool_path = os.path.join(source_workflow_path, 'tools')
+        if os.path.isdir(source_tool_path):
+            subprocess.check_output(["chmod", "-R", "755", source_tool_path])
+
+        # rm first in case exist
+        shutil.rmtree(os.path.join(self.workflow_dir, 'workflow'), ignore_errors=False)
+
+        shutil.move(source_workflow_path, self.workflow_dir)
+
+        # now create the installation flag file
+        open(workflow_installation_flag_file, 'a').close()
+        click.echo('Workflow package installed')
+
+    def _init_queue_dir(self):
+        try:
+            os.makedirs(self.queue_dir)
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+
+    def _init_executor_dir(self):
+        try:
+            os.makedirs(self.executor_dir)
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
