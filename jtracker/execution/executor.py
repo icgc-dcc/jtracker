@@ -51,13 +51,15 @@ class Executor(object):
                  parallel_jobs=1, parallel_workers=1, sleep_interval=5, max_jobs=0, continuous_run=False):
 
         self._killer = GracefulKiller()
+
+        # TODO: will need to verify jt_account
+
         # allow user specify executor_id for resuming,
         # TODO: has to check to make sure there is no such executor currently running
         #       need some server side work to support this
         self._id = executor_id if executor_id else str(uuid4())
 
         self._jt_home = jt_home
-        self._init_jt_home()
 
         self._parallel_jobs = parallel_jobs
         self._max_jobs = max_jobs
@@ -89,6 +91,9 @@ class Executor(object):
         self._running_jobs = []
         self._worker_processes = {}
 
+        # init jt_home dir
+        self._init_jt_home()
+
         # init workflow dir
         self._init_workflow_dir()
 
@@ -99,6 +104,8 @@ class Executor(object):
         self._init_executor_dir()
 
         # TODO: check whether previous executor session exists, restore it unless user chose not to (via options)
+
+        click.echo("Executor: %s started." % self.id)
 
     @property
     def killer(self):
@@ -117,16 +124,26 @@ class Executor(object):
         return self._jt_home
 
     @property
+    def jt_account(self):
+        return self._jt_account
+
+    @property
+    def account_id(self):
+        return self.scheduler.account_id
+
+    @property
     def node_id(self):
         return self._node_id
 
     @property
     def node_dir(self):
-        return os.path.join(self.jt_home, 'node')
+        return os.path.join(self.jt_home, 'account.%s' % self.account_id, 'node')
 
     @property
     def workflow_dir(self):
-        return os.path.join(self.node_dir, 'workflow.%s' % self.scheduler.workflow_id)
+        return os.path.join(self.node_dir,
+                            'workflow.%s' % self.scheduler.workflow_id,
+                            self.scheduler.workflow_version)
 
     @property
     def queue_dir(self):
@@ -209,7 +226,8 @@ class Executor(object):
                 sleep(self.sleep_interval)
                 continue
 
-            worker = Worker(jt_home=self.jt_home, scheduler=self.scheduler, node_id=self.node_id)
+            worker = Worker(jt_home=self.jt_home, account_id=self.account_id,
+                            scheduler=self.scheduler, node_id=self.node_id)
 
             # get a task from a new job, break if no task returned, which suggests there is no more job
             if not worker.next_task(job_state='queued'):
@@ -251,7 +269,8 @@ class Executor(object):
                 click.echo('Current running jobs: %s, running tasks: %s' % (running_jobs, running_workers))
 
                 if running_workers < self.parallel_workers:
-                    worker = Worker(jt_home=self.jt_home, scheduler=self.scheduler, node_id=self.node_id)
+                    worker = Worker(jt_home=self.jt_home, account_id=self.account_id,
+                                    scheduler=self.scheduler, node_id=self.node_id)
                     task = worker.next_task(job_state='running')  # get next task in the current running jobs
                     if not task:  # else try to start task for next job if it's appropriate to do so
                         if not (self.max_jobs and self.ran_jobs >= self.max_jobs) and \
@@ -352,7 +371,7 @@ class Executor(object):
             subprocess.check_output(["chmod", "-R", "755", source_tool_path])
 
         # rm first in case exist
-        shutil.rmtree(os.path.join(self.workflow_dir, 'workflow'), ignore_errors=False)
+        shutil.rmtree(os.path.join(self.workflow_dir, 'workflow'), ignore_errors=True)
 
         shutil.move(source_workflow_path, self.workflow_dir)
 

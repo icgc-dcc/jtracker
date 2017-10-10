@@ -9,9 +9,10 @@ from .. import __version__ as ver
 
 
 class Worker(object):
-    def __init__(self, jt_home=None, scheduler=None, node_id=None):
+    def __init__(self, jt_home=None, account_id=None, scheduler=None, node_id=None):
         self._id = str(uuid4())
         self._jt_home = jt_home
+        self._account_id = account_id
         self._node_id = node_id
         self._scheduler = scheduler
         self._task = None
@@ -23,6 +24,10 @@ class Worker(object):
     @property
     def jt_home(self):
         return self._jt_home
+
+    @property
+    def account_id(self):
+        return self._account_id
 
     @property
     def executor_id(self):
@@ -37,16 +42,22 @@ class Worker(object):
         return self.scheduler.workflow_id
 
     @property
+    def workflow_version(self):
+        return self.scheduler.workflow_version
+
+    @property
     def node_id(self):
         return self._node_id
 
     @property
     def node_dir(self):
-        return os.path.join(self.jt_home, 'node')
+        return os.path.join(self.jt_home, 'account.%s' % self.account_id, 'node')
 
     @property
     def workflow_dir(self):
-        return os.path.join(self.node_dir, 'workflow.%s' % self.workflow_id)
+        return os.path.join(self.node_dir,
+                            'workflow.%s' % self.workflow_id,
+                            self.workflow_version)
 
     @property
     def queue_dir(self):

@@ -1,6 +1,6 @@
 import requests
 import json
-from jtracker.exceptions import JessNotAvailable, WRSNotAvailable
+from jtracker.exceptions import JessNotAvailable, WRSNotAvailable, AMSNotAvailable, AccountNameNotFound
 from .base import Scheduler
 
 
@@ -17,6 +17,7 @@ class JessScheduler(Scheduler):
         self._wrs_server = wrs_server
         self._ams_server = ams_server
         self._jt_account = jt_account
+        self._account_id = self._get_owner_id_by_name(jt_account)
         self._queue_id = queue_id
         self._job_id = job_id
         self._executor_id = executor_id
@@ -38,6 +39,10 @@ class JessScheduler(Scheduler):
     @property
     def jt_account(self):
         return self._jt_account
+
+    @property
+    def account_id(self):
+        return self._account_id
 
     @property
     def queue_id(self):
@@ -222,3 +227,15 @@ class JessScheduler(Scheduler):
 
         if r.status_code != 200:
             raise Exception('Failed to register the executor, please make sure it has not been registered before')
+
+    def _get_owner_id_by_name(self, owner_name):
+        request_url = '%s/accounts/%s' % (self.ams_server.strip('/'), owner_name)
+        try:
+            r = requests.get(request_url)
+        except:
+            raise AMSNotAvailable('AMS service temporarily unavailable')
+
+        if r.status_code != 200:
+            raise AccountNameNotFound(owner_name)
+
+        return json.loads(r.text).get('id')
