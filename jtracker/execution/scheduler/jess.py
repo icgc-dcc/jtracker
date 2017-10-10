@@ -77,9 +77,15 @@ class JessScheduler(Scheduler):
         except:
             raise JessNotAvailable('JESS service temporarily unavailable')
 
+        if r.status_code >= 400:  # need a special response for failed job
+            raise Exception('Unable to retrieve Job Queue')
+
         try:
             queue = json.loads(r.text)
         except:
+            raise Exception('Specified Job Queue does not exist')
+
+        if not isinstance(queue, dict):
             raise Exception('Specified Job Queue does not exist')
 
         self._workflow_id = queue.get('workflow.id')
