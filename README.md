@@ -1,8 +1,8 @@
 # JTracker
 
 JTracker is a job tracking, scheduling and execution system with client-server architecture for distributed
-computational workflows. All jobs are centrally managed by the JTracker server, the client (aka JTracker worker)
-requests jobs/tasks from the server and execute them.
+computational workflows. All jobs are centrally managed by the JTracker server, the clients (aka JTracker executors)
+request jobs/tasks from the server and execute them on the hosts the executors reside.
 
 ## Installation
 
