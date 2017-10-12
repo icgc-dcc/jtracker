@@ -9,8 +9,6 @@ requests jobs/tasks from the server and execute them.
 JTracker client needs to be installed on a workflow task execution host. It may be a VM in a cloud environment, an
 HPC node, or may be just your laptop.
 
-
-### Install from source
 ```
 # clone the source code
 git clone https://github.com/icgc-dcc/jtracker.git
@@ -25,11 +23,12 @@ pip3 install -r requirements.txt
 # install JT client
 python3 setup.py install
 
-# config JT client to connect to the JT server
-# to be completed
 ```
 
-### Run it
+## Config JT client
+You need to configure JT client so it connects to an appropriate JT server, this can be done by editing `.jt/config`.
+
+## Run it
 ```
 jt --help
 ```

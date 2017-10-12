@@ -1,5 +1,5 @@
 jt_home: /Users/junjun/jthome
-jt_account: junjun-zhang
+jt_account: user1
 ams_server: http://localhost:12012/api/jt-ams/v0.1
 wrs_server: http://localhost:12015/api/jt-wrs/v0.1
 jess_server: http://localhost:12018/api/jt-jess/v0.1
