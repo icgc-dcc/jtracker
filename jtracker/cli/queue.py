@@ -1,0 +1,3 @@
+
+class QueueClient(object):
+    pass

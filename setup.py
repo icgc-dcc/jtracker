@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import re
 import ast
 import sys
@@ -36,13 +36,22 @@ with open('requirements-test.txt') as f:
     tests_require = f.read().splitlines()
 
 setup(
-    name = 'jtracker',
-    version = version,
-    description = 'Python library for distributed job scheduling and tracking backed on Git repository',
-    packages = ['jtracker'],
-    install_requires = install_reqs,
-    tests_require = tests_require,
-    cmdclass = {'test': PyTest},
+    name='jtracker',
+    version=version,
+    description='Command line client for JTracker',
+    license='Apache License, Version 2.0',
+    url='https://github.com/icgc-dcc/jtracker',
+    author='Junjun Zhang',
+    author_email='junjun.ca@gmail.com',
+    packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: OS Independent",
+    ],
+    install_requires=install_reqs,
+    tests_require=tests_require,
+    cmdclass={'test': PyTest},
     entry_points={
         'console_scripts': [
             'jt=jtracker.cli:main',
