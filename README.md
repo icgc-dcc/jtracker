@@ -1,62 +1,35 @@
 # JTracker
 
-JTracker is a Git repository based solution for workflow management and execution.
+JTracker is a job tracking, scheduling and execution system with client-server architecture for distributed
+computational workflows. All jobs are centrally managed by the JTracker server, the client (aka JTracker worker)
+requests jobs/tasks from the server and execute them.
 
 ## Installation
 
-JTracker needs to be installed on a workflow task execution host. It may be a VM in a cloud environment, or may be just your laptop.
+JTracker client needs to be installed on a workflow task execution host. It may be a VM in a cloud environment, an
+HPC node, or may be just your laptop.
 
-### Install from PyPI for latest release (no need to clone the source)
-```
-pip install jtracker
-```
 
 ### Install from source
 ```
-# install pipsi first
-curl https://raw.githubusercontent.com/mitsuhiko/pipsi/master/get-pipsi.py | python
-
-# modify PATH to find pipsi, you may want to add this to the '.bashrc' file
-export PATH="~/.local/bin:$PATH"
-
 # clone the source code
 git clone https://github.com/icgc-dcc/jtracker.git
 
 cd jtracker
 
-pipsi install .
+git checkout 0.8-dev
+
+# install packages
+pip3 install -r requirements.txt
+
+# install JT client
+python3 setup.py install
+
+# config JT client to connect to the JT server
+# to be completed
 ```
 
 ### Run it
 ```
-jt
+jt --help
 ```
-
-## Design and create your workflow
-
-Follow this example to develop your workflow: https://github.com/icgc-dcc/ega-file-transfer-to-collab-jt
-
-Quick note on workflow development and testing:
-
-1. You can have workflow definition and workflow execution in one single Git repo, although separating them in dedicated Git repos is recommended for production use. Here is an example: https://github.com/jt-hub/jtracker-example-workflows/tree/master/test.0.2.0.jtracker, note that job states folders and worflow folder are in one repo.
-
-2. It is recommended to use a local Git server for development and testing. Follow this instruction to set up a local git server on a mac: http://www.tomdalling.com/blog/software-processes/how-to-set-up-a-secure-git-server-at-home-osx/. Once set up, you can access it same way as you access github. In my case, `git clone ssh://junjun@localhost:/Users/junjun/mygit/jtracker-demo-workflows.git`
-
-
-## Create a Git repository to manage and track workflow task execution
-
-Due to pontenially large amount of git commits and pushes, for running workflows in production, do not use GitHub to host job tracking repositories. Instead, please set up your own git server.
-
-At this time, you will need to set up the job tracking Git repository on your own manually. In the near future, 'jt' cli tool will be able to set it up automatically for you.
-
-
-## Start JTracker Worker on task execution hosts
-
-On a task execution host, you can start a worker as follow assuming workflow definition and job json files exist as specified.
-
-```
-jt -g 'ssh://junjun@localhost:/Users/junjun/mygit/jtracker-demo-workflows.git' -w test -r 0.2.0 worker
-```
-
-You can start multiple workers on the same host if there is enough computating resource. You can also start workers in different hosts at the same time. Workflow jobs/tasks will be picked up by individual workers as needed.
-
