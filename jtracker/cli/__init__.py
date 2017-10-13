@@ -57,13 +57,13 @@ def config(ctx):
 @click.option('-x', '--m-jobs', type=int, default=0, help='Max number of jobs to be run by the executor')
 @click.option('-i', '--job-id', help='Execute specified job')
 @click.option('-j', '--job-file', type=click.Path(exists=True), help='Execute local job file')
-@click.option('-w', '--workflow-name', help='Specify fullname ({owner}.{workflow}:{ver}) of a registered workflow')
+@click.option('-w', '--workflow-name', help='Specify registered workflow name in format: [{owner}/]{workflow}:{ver}')
 @click.option('-c', '--continuous-run', is_flag=True, help='Keep executor running even job queue is empty')
 @click.pass_context
 def executor(ctx, job_file, job_id, queue_id, executor_id,
              workflow_name, n_jobs, m_jobs, n_workers, continuous_run):
     """
-    Launch JTracker Executor
+    Launch JTracker executor
     """
     jt_executor = None
     try:
@@ -119,12 +119,25 @@ def queue(ctx):
 
 
 @main.command()
+@click.option('-c', '--command', required=True, help="One of 'create', 'list'")
+@click.option('-u', '--user-name', help='User name')
 @click.pass_context
-def user(ctx):
+def user(ctx, command, user_name):
     """
     Operations related to user
     """
-    pass
+    user_client = UserClient(jt_home=ctx.obj['JT_CONFIG'].get('jt_home'),
+                             jt_account=ctx.obj['JT_CONFIG'].get('jt_account'),
+                             ams_server=ctx.obj['JT_CONFIG'].get('ams_server'))
+    if command == 'create':
+        user_client.create(user_name)
+
+    elif command == 'list':
+        pass
+
+    else:
+        click.echo('Unrecognized command: %s' % command)
+        ctx.abort()
 
 
 @main.command()

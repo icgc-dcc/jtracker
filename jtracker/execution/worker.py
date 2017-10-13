@@ -132,16 +132,6 @@ class Worker(object):
 
         output.update({'_jt_': _jt_})
 
-        # use this to test
-        fake_output = {
-            'xml_file_size': 2323,
-            'xml_file_name': 'abc.xml',
-            'xml_file_md5sum': 'dafa',
-            'xml_file': '/test/dada.xml',
-            'file': '/test/dada.bam'
-        }
-        output.update(fake_output)
-
         job_id = self.task.get('job.id')
         task_name = self.task.get('name')
         if success:
