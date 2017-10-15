@@ -60,8 +60,6 @@ jt_account: your_account_name
 The workflow we use for this demo is available here:
  https://github.com/jthub/demo-workflows/tree/master/webpage-word-count.
 
-You may skip this step if you want to use the same JT workflow I already registered under `user1`.
-
 ```
 # please change `your_account_name` to your own in the following command
 curl -XPOST 'http://159.203.53.247/api/jt-wrs/v0.1/workflows/owner/your_account_name' -H 'Content-Type: application/json' -d $'{
