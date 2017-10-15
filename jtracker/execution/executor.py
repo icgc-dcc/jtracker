@@ -301,7 +301,11 @@ class Executor(object):
                 if p.is_alive():
                     p.join()
 
-        # TODO: call server to mark this executor terminated
+        # call server to mark this executor terminated
+        for j in self.scheduler.running_jobs():
+            print('Cancelling job: %s' % j.get('id'))
+            self.scheduler.cancel_job(job_id=j.get('id'))
+
         # report summary about completed jobs and running jobs if any
         click.echo('Executed %s %s.' % (self.ran_jobs, 'job' if self.ran_jobs <= 1 else 'jobs'))
 

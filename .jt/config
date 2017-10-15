@@ -1,5 +1,5 @@
 jt_home: /Users/junjun/jthome  # need to change this
 jt_account: user1  # demo user
-ams_server: http://142.1.177.112/api/jt-ams/v0.1  # demo server
-wrs_server: http://142.1.177.112/api/jt-wrs/v0.1  # demo server
-jess_server: http://142.1.177.112/api/jt-jess/v0.1  # demo server
+ams_server: http://159.203.53.247/api/jt-ams/v0.1  # demo server
+wrs_server: http://159.203.53.247/api/jt-wrs/v0.1  # demo server
+jess_server: http://159.203.53.247/api/jt-jess/v0.1  # demo server
