@@ -113,6 +113,9 @@ Finally, let's launch a JT executor to run those jobs.
 jt executor -q 00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3 -c
 ```
 
+This will launch an executor that will pull and run jobs from queue `00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3`. Currently
+running jobs/tasks will be displayed in stdout (this can be turned off later).
+
 Option `-c` tells executor to run continuously even after it finises all the jobs in the queue. This is useful
 when you know there will be more jobs to be queued and you don't want to start the executor again. There are
 some other useful options give you fine control over how jobs/tasks are to be run. For example,
@@ -122,5 +125,17 @@ To increase job processing throughput, you can run many JT executors on multiple
 (in any environment) at the same time. It's possible to implement auto-scaling on your own, for example,
 using Kubernetes to increase or decrease Job nodes on which JT executor runs.
 
-### Check job output
+### Check job status and output
 
+Get job status for executor `89c9bcb0-5ce9-4090-9d79-deba35a81f16` working on queue `09360ea8-748a-4a8d-9b55-16b5b7278069`.
+```
+curl -XGET 'http://159.203.53.247/api/jt-jess/v0.1/jobs/owner/user2/queue/09360ea8-748a-4a8d-9b55-16b5b7278069/executor/89c9bcb0-5ce9-4090-9d79-deba35a81f16'
+```
+
+Get detail for a particular job `c36f6ed7-7639-4ffc-984e-f83e00936d4d` in queue `09360ea8-748a-4a8d-9b55-16b5b7278069`.
+```
+curl -XGET 'http://159.203.53.247/api/jt-jess/v0.1/jobs/owner/user2/queue/09360ea8-748a-4a8d-9b55-16b5b7278069/job/c36f6ed7-7639-4ffc-984e-f83e00936d4d'
+
+```
+
+In the response JSON you will be able to find the word count result.
