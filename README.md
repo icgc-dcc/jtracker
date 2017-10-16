@@ -67,9 +67,9 @@ curl -XPOST 'http://159.203.53.247/api/jt-wrs/v0.1/workflows/owner/your_account_
   "git_account": "jthub",
   "git_repo": "demo-workflows",
   "git_path": "webpage-word-count",
-  "git_tag": "webpage-word-count.0.0.7",
+  "git_tag": "webpage-word-count.0.0.8",
   "name": "webpage-word-count",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "workflow_type": "JTracker"
 }'
 ```
@@ -77,11 +77,11 @@ curl -XPOST 'http://159.203.53.247/api/jt-wrs/v0.1/workflows/owner/your_account_
 ### Create a Job Queue for the workflow you would like to run from
 
 The following command creates a job queue under account: `your_account_name` for
-workflow: `webpage-word-count` with version: `0.0.7`.
+workflow: `webpage-word-count` with version: `0.0.8`.
 
 ```
 # replace 'your_account_name' to your own
-curl -XPOST 'http://159.203.53.247/api/jt-jess/v0.1/queues/owner/your_account_name/workflow/webpage-word-count/ver/0.0.7'
+curl -XPOST 'http://159.203.53.247/api/jt-jess/v0.1/queues/owner/your_account_name/workflow/webpage-word-count/ver/0.0.8'
 ```
 
 Upon successful creation, you will get a UUID for the new job queue, record it for the next step. In
