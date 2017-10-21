@@ -15,19 +15,19 @@ git clone https://github.com/icgc-dcc/jtracker.git
 
 cd jtracker
 
-# install packages
+# install packages, you may need to run it with sudo
 pip3 install -r requirements.txt
 
-# install JT client
+# install JT client, you may need to run it with sudo
 python3 setup.py install
 
-# if you see usage information with the follow command, you are ready for the quick test run described in the next section
+# if you see usage information with the follow command, you are ready to go
 jt --help
 ```
 
 ## Quick test run with demo JTracker workflow
 
-JTracker is in early phase of development, features and behaviour may change as we advance forward. However this quick
+JTracker is in early phase of development, features and behaviours may change as we advance forward. However this quick
 test run should give you a clear picture how JTracker is designed and how it may fit in your workflow use cases.
 
 This test run uses a demo JT server running at http://159.203.53.247. We use `curl` commands to perform most of
