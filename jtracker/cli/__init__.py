@@ -1,20 +1,21 @@
-import datetime
 import json
 import click
-from .. import __version__ as ver
-from .user import UserClient
-from .org import OrgClient
-from .workflow import WorkflowClient
-from .job import JobClient
-from .queue import QueueClient
+from jtracker import __version__ as ver
+from .user import commands as user_commands
+from .org import commands as org_commands
+from .wf import commands as wf_commands
+from .queue import commands as queue_commands
+from .job import commands as job_commands
+from .task import commands as task_commands
+from .exec import commands as exec_commands
+
 from .config import Config
-from ..execution import Executor
 
 
 def print_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.echo('jtracker %s' % ver)
+    click.echo('JTracker cli %s' % ver)
     ctx.exit()
 
 
@@ -49,106 +50,96 @@ def config(ctx):
     click.echo('*** other features to be implemented ***')
 
 
-@main.command()
-@click.option('-q', '--queue-id', help='Job queue ID')
-@click.option('-e', '--executor-id', help='Specify executor ID to resume interrupted execution')
-@click.option('-n', '--n-workers', type=int, default=2, help='Max number of parallel workers')
-@click.option('-m', '--n-jobs', type=int, default=1, help='Max number of parallel running jobs')
-@click.option('-x', '--m-jobs', type=int, default=0, help='Max number of jobs to be run by the executor')
-@click.option('-i', '--job-id', help='Execute specified job')
-@click.option('-j', '--job-file', type=click.Path(exists=True), help='Execute local job file')
-@click.option('-w', '--workflow-name', help='Specify registered workflow name in format: [{owner}/]{workflow}:{ver}')
-@click.option('-c', '--continuous-run', is_flag=True, help='Keep executor running even job queue is empty')
+@main.group()
 @click.pass_context
-def executor(ctx, job_file, job_id, queue_id, executor_id,
-             workflow_name, n_jobs, m_jobs, n_workers, continuous_run):
+def user(ctx):
     """
-    Launch JTracker executor
-    """
-    jt_executor = None
-    try:
-        jt_executor = Executor(jt_home=ctx.obj['JT_CONFIG'].get('jt_home'),
-                               jt_account=ctx.obj['JT_CONFIG'].get('jt_account'),
-                               ams_server=ctx.obj['JT_CONFIG'].get('ams_server'),
-                               wrs_server=ctx.obj['JT_CONFIG'].get('wrs_server'),
-                               jess_server=ctx.obj['JT_CONFIG'].get('jess_server'),
-                               job_file=job_file,
-                               job_id=job_id,
-                               executor_id=executor_id,
-                               queue_id=queue_id,
-                               workflow_name=workflow_name,
-                               parallel_jobs=n_jobs,
-                               max_jobs=m_jobs,
-                               parallel_workers=n_workers,
-                               continuous_run=continuous_run
-                               )
-    except Exception as e:
-        click.echo(str(e))
-        click.echo('For usage: jt executor --help')
-        ctx.abort()
-
-    if jt_executor:
-        jt_executor.run()
-
-
-@main.command()
-@click.pass_context
-def workflow(ctx):
-    """
-    Operations related to workflow
+    Commands related to user
     """
     pass
 
 
-@main.command()
-@click.pass_context
-def job(ctx):
-    """
-    Operations related to job
-    """
-    pass
+# user subcommands
+user.add_command(user_commands.list)
+user.add_command(user_commands.login)
+user.add_command(user_commands.whoami)
+user.add_command(user_commands.signup)
+user.add_command(user_commands.delete)
+user.add_command(user_commands.update)
 
 
-@main.command()
-@click.pass_context
-def queue(ctx):
-    """
-    Operations related to job queue
-    """
-    pass
-
-
-@main.command()
-@click.option('-c', '--command', required=True, help="One of 'create', 'list'")
-@click.option('-u', '--user-name', help='User name')
-@click.pass_context
-def user(ctx, command, user_name):
-    """
-    Operations related to user
-    """
-    user_client = UserClient(jt_home=ctx.obj['JT_CONFIG'].get('jt_home'),
-                             jt_account=ctx.obj['JT_CONFIG'].get('jt_account'),
-                             ams_server=ctx.obj['JT_CONFIG'].get('ams_server'))
-    if command == 'create':
-        user_client.create(user_name)
-
-    elif command == 'list':
-        pass
-
-    else:
-        click.echo('Unrecognized command: %s' % command)
-        ctx.abort()
-
-
-@main.command()
+@main.group()
 @click.pass_context
 def org(ctx):
     """
-    Operations related to organization
+    Commands related to organization
     """
     pass
+
+
+# org subcommands
+org.add_command(org_commands.list)
+
+
+@main.group()
+@click.pass_context
+def wf(ctx):
+    """
+    Commands related to workflow
+    """
+    pass
+
+
+wf.add_command(wf_commands.list)
+
+
+@main.group()
+@click.pass_context
+def queue(ctx):
+    """
+    Commands related to queue
+    """
+    pass
+
+
+queue.add_command(queue_commands.list)
+
+
+@main.group()
+@click.pass_context
+def job(ctx):
+    """
+    Commands related to job
+    """
+    pass
+
+
+job.add_command(job_commands.list)
+
+
+@main.group()
+@click.pass_context
+def task(ctx):
+    """
+    Commands related to executor
+    """
+    pass
+
+# exec subcommands
+task.add_command(task_commands.list)
+
+
+@main.group()
+@click.pass_context
+def exec(ctx):
+    """
+    Commands related to executor
+    """
+    pass
+
+# exec subcommands
+exec.add_command(exec_commands.start)
 
 
 if __name__ == '__main__':
     main()
-

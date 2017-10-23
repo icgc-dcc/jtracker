@@ -1,3 +1,0 @@
-
-class WorkflowClient(object):
-    pass
