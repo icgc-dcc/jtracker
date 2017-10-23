@@ -1,3 +1,0 @@
-
-class QueueClient(object):
-    pass

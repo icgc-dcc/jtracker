@@ -30,9 +30,7 @@ jt --help
 JTracker is in early phase of development, features and behaviours may change as we advance forward. However this quick
 test run should give you a clear picture how JTracker is designed and how it may fit in your workflow use cases.
 
-This test run uses a demo JT server running at http://159.203.53.247. We use `curl` commands to perform most of
-the operations against the REST API endpoints. You will be able to do it using `jt` itself once the features are
-implemented in the `jt` client.
+This test run uses a demo JT server running at http://159.203.53.247.
 
 Note: please **do not** upload sensitive data when following along the steps.
 
@@ -41,11 +39,7 @@ Note: please **do not** upload sensitive data when following along the steps.
 Please change `your_account_name` to your own in the following command.
 
 ```
-curl -XPOST 'http://159.203.53.247/api/jt-ams/v0.1/accounts' -H 'Content-Type: application/json' -d $'
-{
-  "account_type": "user",
-  "name": "your_account_name"
-}'
+jt user signup -u your_account_name
 ```
 
 ### Update JT configuration with the new user account
@@ -60,28 +54,28 @@ jt_account: your_account_name
 The workflow we use for this demo is available here:
  https://github.com/jthub/demo-workflows/tree/master/webpage-word-count.
 
+The workflow git release tag is 'webpage-word-count.0.0.8':
+ https://github.com/jthub/demo-workflows/releases/tag/webpage-word-count.0.0.8
+
 ```
-# please change `your_account_name` to your own in the following command
-curl -XPOST 'http://159.203.53.247/api/jt-wrs/v0.1/workflows/owner/your_account_name' -H 'Content-Type: application/json' -d $'{
-  "git_server": "https://github.com",
-  "git_account": "jthub",
-  "git_repo": "demo-workflows",
-  "git_path": "webpage-word-count",
-  "git_tag": "webpage-word-count.0.0.8",
-  "name": "webpage-word-count",
-  "version": "0.0.8",
-  "workflow_type": "JTracker"
-}'
+jt wf register --git-server https://github.com \
+               --git-account jthub \
+               --git-repo demo-workflows \
+               --git-path webpage-word-count \
+               --git-tag webpage-word-count.0.0.8 \
+               --wf-name webpage-word-count \
+               --wf-version 0.0.8 \
+               --wf-type JTracker
 ```
 
 ### Create a Job Queue for the workflow you would like to run from
 
-The following command creates a job queue under account: `your_account_name` for
+The following command creates a job queue for
 workflow: `webpage-word-count` with version: `0.0.8`.
 
 ```
-# replace 'your_account_name' to your own
-curl -XPOST 'http://159.203.53.247/api/jt-jess/v0.1/queues/owner/your_account_name/workflow/webpage-word-count/ver/0.0.8'
+jt queue add --wf-name webpage-word-count \
+             --wf-version 0.0.8
 ```
 
 Upon successful creation, you will get a UUID for the new job queue, record it for the next step. In
@@ -97,8 +91,7 @@ Now you are ready to add some jobs to the new queue.
 
 ```
 # remember to replace '00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3' with your own queue ID
-# also replace 'your_account_name' to the one you created at the first step
-curl -XPOST 'http://159.203.53.247/api/jt-jess/v0.1/jobs/owner/your_account_name/queue/00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3' -H 'Content-Type: application/json' -d $'{
+jt job add -q 00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3 -j '{
   "webpage_url": "https://dzone.com/cloud-computing-tutorials-tools-news",
   "words": [ "Cloud", "Java", "AngularJS", "div", "class" ]
 }'
@@ -113,7 +106,7 @@ Finally, let's launch a JT executor to run those jobs.
 
 ```
 # again, replace '00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3' with your own queue ID
-jt executor -q 00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3
+jt exec start -q 00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3
 ```
 
 This will launch an executor that will pull and run jobs from queue `00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3`. Current
@@ -123,7 +116,7 @@ There are some useful options give you control over how jobs/tasks are to be run
 `-n` and `-m` allow you control how many parallel tasks and jobs the executor can run respectively.
 Option `-c` tells executor to run continuously even after it finises all the jobs in the queue. This is useful
 when you know there will be more jobs to be queued and you don't want to start the executor again.
-Try `jt executor --help` to get more information.
+Try `jt exec start --help` to get more information.
 
 To increase job processing throughput, you can run many JT executors on multiple compute nodes
 (in any environment cloud or HPC) at the same time.
@@ -135,15 +128,14 @@ decrease worker nodes on which JT executor runs.
 
 If the executor is still running, you can perform the following commands in a different terminal.
 
-Get job status for executor `89c9bcb0-5ce9-4090-9d79-deba35a81f16` working on queue `09360ea8-748a-4a8d-9b55-16b5b7278069`.
+Get job status in queue `09360ea8-748a-4a8d-9b55-16b5b7278069`.
 ```
-curl -XGET 'http://159.203.53.247/api/jt-jess/v0.1/jobs/owner/your_account_name/queue/09360ea8-748a-4a8d-9b55-16b5b7278069/executor/89c9bcb0-5ce9-4090-9d79-deba35a81f16'
+jt job ls -q 09360ea8-748a-4a8d-9b55-16b5b7278069
 ```
 
 Get detail for a particular job `c36f6ed7-7639-4ffc-984e-f83e00936d4d` in queue `09360ea8-748a-4a8d-9b55-16b5b7278069`.
 ```
-curl -XGET 'http://159.203.53.247/api/jt-jess/v0.1/jobs/owner/your_account_name/queue/09360ea8-748a-4a8d-9b55-16b5b7278069/job/c36f6ed7-7639-4ffc-984e-f83e00936d4d'
-
+jt job get -j c36f6ed7-7639-4ffc-984e-f83e00936d4d -q 09360ea8-748a-4a8d-9b55-16b5b7278069
 ```
 
 In the response JSON you will be able to find the word count result.
