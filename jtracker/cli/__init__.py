@@ -20,12 +20,14 @@ def print_version(ctx, param, value):
 
 
 @click.group()
+@click.option('--write-out', '-w', type=click.Choice(['simple', 'json']),
+              default='simple', help='JTracker configuration file', required=False)
 @click.option('--config-file', '-c', envvar='JT_CONFIG_FILE', type=click.Path(exists=True),
               default='.jt/config', help='JTracker configuration file', required=False)
 @click.option('--version', '-v', is_flag=True, callback=print_version, expose_value=False,
               help='Show JTracker version', is_eager=True)
 @click.pass_context
-def main(ctx, config_file):
+def main(ctx, config_file, write_out):
     # initialize configuration from config_file
     try:
         jt_config = Config(config_file).dict
@@ -35,6 +37,7 @@ def main(ctx, config_file):
 
     # initializing ctx.obj
     ctx.obj = {
+        'JT_WRITE_OUT': write_out,
         'JT_CONFIG_FILE': config_file,
         'JT_CONFIG': jt_config
     }
@@ -60,7 +63,7 @@ def user(ctx):
 
 
 # user subcommands
-user.add_command(user_commands.list)
+user.add_command(user_commands.ls)
 user.add_command(user_commands.login)
 user.add_command(user_commands.whoami)
 user.add_command(user_commands.signup)
@@ -78,7 +81,7 @@ def org(ctx):
 
 
 # org subcommands
-org.add_command(org_commands.list)
+org.add_command(org_commands.ls)
 
 
 @main.group()
@@ -90,7 +93,9 @@ def wf(ctx):
     pass
 
 
-wf.add_command(wf_commands.list)
+# wf subcommands
+wf.add_command(wf_commands.ls)
+wf.add_command(wf_commands.register)
 
 
 @main.group()
@@ -102,7 +107,9 @@ def queue(ctx):
     pass
 
 
-queue.add_command(queue_commands.list)
+# queue subcommands
+queue.add_command(queue_commands.ls)
+queue.add_command(queue_commands.add)
 
 
 @main.group()
@@ -114,7 +121,10 @@ def job(ctx):
     pass
 
 
-job.add_command(job_commands.list)
+# job subcommands
+job.add_command(job_commands.ls)
+job.add_command(job_commands.get)
+job.add_command(job_commands.add)
 
 
 @main.group()
@@ -125,8 +135,9 @@ def task(ctx):
     """
     pass
 
-# exec subcommands
-task.add_command(task_commands.list)
+
+# task subcommands
+task.add_command(task_commands.ls)
 
 
 @main.group()
@@ -136,6 +147,7 @@ def exec(ctx):
     Commands related to executor
     """
     pass
+
 
 # exec subcommands
 exec.add_command(exec_commands.start)

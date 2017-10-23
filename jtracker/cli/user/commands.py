@@ -6,24 +6,37 @@ from jtracker.exceptions import AMSNotAvailable, AccountNameNotFound
 
 @click.command()
 @click.pass_context
-def list(ctx):
+def ls(ctx):
     """
     Listing users
     """
-    click.echo('user list subcommand')
-    click.echo(ctx.obj)
+    click.echo('Not implemented yet: user list subcommand')
 
 
 @click.command()
 @click.option('-u', '--user', required=True, help='User name')
-@click.option('-e', '--email', required=True, help='User email')
+# @click.option('-e', '--email', required=True, help='User email')
 @click.pass_context
-def signup(ctx):
+def signup(ctx, user):
     """
     Sign up as a new user
     """
-    click.echo('user signup subcommand')
-    click.echo(ctx.obj)
+    ams_url = ctx.obj.get('JT_CONFIG').get('ams_server')
+
+    url = "%s/accounts" % ams_url
+
+    r = requests.post(url=url, json={
+        "account_type": "user",
+        "name": user
+    })
+
+    if r.status_code != 200:
+        click.echo('Account sign up failed: %s' % r.text)
+        ctx.abort()
+    else:
+        rv = json.loads(r.text)
+        click.echo("Account sign up succeeded")
+        click.echo("user_name: %s\nuser_id: %s" %(rv.get('name'), rv.get('id')))
 
 
 @click.command()
