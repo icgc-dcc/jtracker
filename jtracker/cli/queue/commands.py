@@ -3,12 +3,24 @@ import requests
 
 
 @click.command()
+@click.option('-o', '--owner', help='Owner account name')
 @click.pass_context
-def ls(ctx):
+def ls(ctx, owner):
     """
     Listing workflow queues
     """
-    click.echo('queue list subcommand')
+    jess_url = ctx.obj.get('JT_CONFIG').get('jess_server')
+    owner = owner if owner else ctx.obj.get('JT_CONFIG').get('jt_account')
+
+    url = "%s/queues/owner/%s" % (jess_url, owner)
+
+    r = requests.get(url)
+
+    if r.status_code != 200:
+        click.echo('List job queue for: %s failed: %s' % (owner, r.text))
+        ctx.abort()
+    else:
+        click.echo(r.text)
 
 
 @click.command()
@@ -18,7 +30,7 @@ def ls(ctx):
 @click.pass_context
 def add(ctx, wf_name, wf_version, wf_owner):
     """
-    Listing workflow queues
+    Create a workflow queue
     """
     jess_url = ctx.obj.get('JT_CONFIG').get('jess_server')
     if wf_owner is None:

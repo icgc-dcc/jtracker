@@ -5,15 +5,15 @@ from jtracker.execution import Executor
 @click.command()
 @click.option('-q', '--queue-id', help='Job queue ID')
 @click.option('-e', '--executor-id', help='Specify executor ID to resume interrupted execution')
-@click.option('-n', '--n-workers', type=int, default=2, help='Max number of parallel workers')
-@click.option('-m', '--n-jobs', type=int, default=1, help='Max number of parallel running jobs')
-@click.option('-x', '--m-jobs', type=int, default=0, help='Max number of jobs to be run by the executor')
+@click.option('-k', '--parallel-workers', type=int, default=2, help='Max number of parallel workers')
+@click.option('-p', '--parallel-jobs', type=int, default=1, help='Max number of parallel running jobs')
+@click.option('-m', '--max-jobs', type=int, default=0, help='Max number of jobs to be run by the executor')
 @click.option('-i', '--job-id', help='Execute specified job')
 @click.option('-j', '--job-file', type=click.Path(exists=True), help='Execute local job file')
 @click.option('-w', '--workflow-name', help='Specify registered workflow name in format: [{owner}/]{workflow}:{ver}')
 @click.option('-c', '--continuous-run', is_flag=True, help='Keep executor running even job queue is empty')
 @click.pass_context
-def start(ctx, job_file, job_id, queue_id, executor_id,
+def run(ctx, job_file, job_id, queue_id, executor_id,
              workflow_name, n_jobs, m_jobs, n_workers, continuous_run):
     """
     Launch JTracker executor

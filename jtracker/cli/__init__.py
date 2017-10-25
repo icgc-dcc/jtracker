@@ -1,3 +1,4 @@
+import os
 import json
 import click
 from jtracker import __version__ as ver
@@ -23,12 +24,17 @@ def print_version(ctx, param, value):
 @click.option('--write-out', '-w', type=click.Choice(['simple', 'json']),
               default='simple', help='JTracker configuration file', required=False)
 @click.option('--config-file', '-c', envvar='JT_CONFIG_FILE', type=click.Path(exists=True),
-              default='.jt/config', help='JTracker configuration file', required=False)
+              help='JTracker configuration file', required=False)
 @click.option('--version', '-v', is_flag=True, callback=print_version, expose_value=False,
               help='Show JTracker version', is_eager=True)
 @click.pass_context
 def main(ctx, config_file, write_out):
     # initialize configuration from config_file
+    if config_file is None:
+        config_file = os.path.join(os.getenv("HOME"), '.jtconfig')
+        if not os.path.isfile(config_file):
+            config_file = os.path.join('.', '.jtconfig')
+
     try:
         jt_config = Config(config_file).dict
     except Exception as err:
@@ -150,7 +156,7 @@ def exec(ctx):
 
 
 # exec subcommands
-exec.add_command(exec_commands.start)
+exec.add_command(exec_commands.run)
 
 
 if __name__ == '__main__':
