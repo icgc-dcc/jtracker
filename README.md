@@ -116,7 +116,7 @@ There are some useful options give you control over how jobs/tasks are to be run
 `-k` and `-p` allow you control how many parallel tasks and jobs the executor can run respectively.
 Option `-c` tells executor to run continuously even after it finises all the jobs in the queue. This is useful
 when you know there will be more jobs to be queued and you don't want to start the executor again.
-Try `jt exec start --help` to get more information.
+Try `jt exec run --help` to get more information.
 
 To increase job processing throughput, you can run many JT executors on multiple compute nodes
 (in any environment cloud or HPC) at the same time.
