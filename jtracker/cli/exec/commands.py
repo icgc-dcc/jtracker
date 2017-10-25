@@ -14,7 +14,7 @@ from jtracker.execution import Executor
 @click.option('-c', '--continuous-run', is_flag=True, help='Keep executor running even job queue is empty')
 @click.pass_context
 def run(ctx, job_file, job_id, queue_id, executor_id,
-             workflow_name, n_jobs, m_jobs, n_workers, continuous_run):
+             workflow_name, parallel_jobs, max_jobs, parallel_workers, continuous_run):
     """
     Launch JTracker executor
     """
@@ -30,9 +30,9 @@ def run(ctx, job_file, job_id, queue_id, executor_id,
                                executor_id=executor_id,
                                queue_id=queue_id,
                                workflow_name=workflow_name,
-                               parallel_jobs=n_jobs,
-                               max_jobs=m_jobs,
-                               parallel_workers=n_workers,
+                               parallel_jobs=parallel_jobs,
+                               max_jobs=max_jobs,
+                               parallel_workers=parallel_workers,
                                continuous_run=continuous_run
                                )
     except Exception as e:
