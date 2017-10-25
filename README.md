@@ -44,7 +44,7 @@ jt user signup -u your_account_name
 
 ### Update JT configuration with the new user account
 
-Edit the configuration file at `.jt/config` to include the new account. The line should look like below.
+Edit the configuration file at `.jtconfig` to include the new account. The line should look like below.
 ```
 jt_account: your_account_name
 ```
@@ -113,7 +113,7 @@ This will launch an executor that will pull and run jobs from queue `00e2b2e4-f2
 running jobs/tasks will be displayed in stdout (this can be turned off later).
 
 There are some useful options give you control over how jobs/tasks are to be run. For example,
-`-n` and `-m` allow you control how many parallel tasks and jobs the executor can run respectively.
+`-k` and `-p` allow you control how many parallel tasks and jobs the executor can run respectively.
 Option `-c` tells executor to run continuously even after it finises all the jobs in the queue. This is useful
 when you know there will be more jobs to be queued and you don't want to start the executor again.
 Try `jt exec start --help` to get more information.

@@ -9,7 +9,7 @@ class Config(object):
                 with open(config_file, 'r') as f:
                     self._dict = yaml.safe_load(f)
             except:
-                raise "Couldn't open config file: %s" % config_file
+                raise Exception("Couldn't open config file: %s" % config_file)
         else:  # otherwise default configuration is used
             raise Exception("Must provide configuration YAML file")
 
