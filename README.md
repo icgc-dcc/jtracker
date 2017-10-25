@@ -106,7 +106,7 @@ Finally, let's launch a JT executor to run those jobs.
 
 ```
 # again, replace '00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3' with your own queue ID
-jt exec start -q 00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3
+jt exec run -q 00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3
 ```
 
 This will launch an executor that will pull and run jobs from queue `00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3`. Current
