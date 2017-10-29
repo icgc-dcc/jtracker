@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import re
+import os
 import ast
 import sys
 from setuptools import setup, find_packages
@@ -35,6 +36,8 @@ with open('requirements.txt') as f:
 with open('requirements-test.txt') as f:
     tests_require = f.read().splitlines()
 
+home_dir = os.environ.get('HOME')
+
 setup(
     name='jtracker',
     version=version,
@@ -44,8 +47,9 @@ setup(
     author='Junjun Zhang',
     author_email='junjun.ca@gmail.com',
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    data_files=[(home_dir, ['.jtconfig'])],
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],

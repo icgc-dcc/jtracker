@@ -8,6 +8,8 @@ class Config(object):
             try:
                 with open(config_file, 'r') as f:
                     self._dict = yaml.safe_load(f)
+                if self.dict.get('jt_home') is None:
+                    self.dict['jt_home'] = os.path.join(os.environ['HOME'], 'jthome')
             except:
                 raise Exception("Couldn't open config file: %s" % config_file)
         else:  # otherwise default configuration is used

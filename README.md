@@ -15,6 +15,9 @@ git clone https://github.com/icgc-dcc/jtracker.git
 
 cd jtracker
 
+# install pip3 if not installed already, for Debian or Ubuntu platform do this:
+sudo apt-get install python3-pip
+
 # install packages, you may need to run it with sudo
 pip3 install -r requirements.txt
 
@@ -44,7 +47,7 @@ jt user signup -u your_account_name
 
 ### Update JT configuration with the new user account
 
-Edit the configuration file at `.jtconfig` to include the new account. The line should look like below.
+Edit the configuration file at `.jtconfig` (under your home directory) to include the new account. The line should look like below.
 ```
 jt_account: your_account_name
 ```

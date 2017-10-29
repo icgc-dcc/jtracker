@@ -37,7 +37,7 @@ def run(ctx, job_file, job_id, queue_id, executor_id,
                                )
     except Exception as e:
         click.echo(str(e))
-        click.echo('For usage: jt exec start --help')
+        click.echo('For usage: jt exec run --help')
         ctx.abort()
 
     if jt_executor:
