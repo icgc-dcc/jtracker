@@ -22,7 +22,7 @@ def print_version(ctx, param, value):
 
 @click.group()
 @click.option('--write-out', '-w', type=click.Choice(['simple', 'json']),
-              default='simple', help='JTracker configuration file', required=False)
+              default='simple', help='JT-CLI output format', required=False)
 @click.option('--config-file', '-c', envvar='JT_CONFIG_FILE', type=click.Path(exists=True),
               help='JTracker configuration file', required=False)
 @click.option('--version', '-v', is_flag=True, callback=print_version, expose_value=False,
@@ -63,7 +63,7 @@ def config(ctx):
 @click.pass_context
 def user(ctx):
     """
-    Commands related to user
+    Operations related to user
     """
     pass
 
@@ -81,7 +81,7 @@ user.add_command(user_commands.update)
 @click.pass_context
 def org(ctx):
     """
-    Commands related to organization
+    Operations related to organization
     """
     pass
 
@@ -94,7 +94,7 @@ org.add_command(org_commands.ls)
 @click.pass_context
 def wf(ctx):
     """
-    Commands related to workflow
+    Operations related to workflow
     """
     pass
 
@@ -108,7 +108,7 @@ wf.add_command(wf_commands.register)
 @click.pass_context
 def queue(ctx):
     """
-    Commands related to queue
+    Operations related to queue
     """
     pass
 
@@ -122,7 +122,7 @@ queue.add_command(queue_commands.add)
 @click.pass_context
 def job(ctx):
     """
-    Commands related to job
+    Operations related to job
     """
     pass
 
@@ -137,7 +137,7 @@ job.add_command(job_commands.add)
 @click.pass_context
 def task(ctx):
     """
-    Commands related to executor
+    Operations related to task
     """
     pass
 
@@ -150,7 +150,7 @@ task.add_command(task_commands.ls)
 @click.pass_context
 def exec(ctx):
     """
-    Commands related to executor
+    Operations related to executor
     """
     pass
 
