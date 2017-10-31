@@ -40,13 +40,35 @@ def signup(ctx, user):
 
 
 @click.command()
+@click.option('-u', '--user', required=True, help='User name')
 @click.pass_context
-def login(ctx):
+def login(ctx, user):
     """
     User log in
     """
-    click.echo('user login subcommand')
-    click.echo(ctx.obj)
+    # first make sure user can log in
+    # for now as long as account exists, it's valid to switch to it
+
+    ams_url = ctx.obj.get('JT_CONFIG').get('ams_server')
+
+    url = "%s/accounts/%s" % (ams_url, user)
+    r = requests.get(url=url)
+    if r.status_code != 200:
+        click.echo('Log in failed for: %s' % user)
+        ctx.abort()
+
+    jtconfig_file = ctx.obj.get('JT_CONFIG_FILE')
+    with open(jtconfig_file, 'r') as f:
+        lines = f.readlines()
+
+    with open(jtconfig_file, 'w') as f:
+        for l in lines:
+            if l.startswith('jt_account:'):
+                l = 'jt_account: %s\n' % user
+            f.write(l)
+
+    # TODO: write the logged user name in the config file
+    click.echo('Logged in as: %s' % user)
 
 
 @click.command()
@@ -55,8 +77,9 @@ def whoami(ctx):
     """
     Get the current user
     """
-    click.echo('user whoami subcommand')
-    click.echo(ctx.obj)
+    # need to check whether user already logged in
+    current_acc = ctx.obj.get('JT_CONFIG').get('jt_account')
+    click.echo("Current account in use: %s" % current_acc)
 
 
 @click.command()
