@@ -45,11 +45,11 @@ Please change `your_account_name` to your own in the following command.
 jt user signup -u your_account_name
 ```
 
-### Update JT configuration with the new user account
+### Log in as the new user
 
-Edit the configuration file at `.jtconfig` (under your home directory) to include the new account. The line should look like below.
 ```
-jt_account: your_account_name
+# logging in has not been fully implemented, no password needed for now
+jt user login -u your_account_name
 ```
 
 ### Register a JT workflow under your account
