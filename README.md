@@ -96,7 +96,7 @@ Now you are ready to add some jobs to the new queue.
 # remember to replace '00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3' with your own queue ID
 jt job add -q 00e2b2e4-f2dc-420a-bb2d-3df6a7984cc3 -j '{
   "webpage_url": "https://dzone.com/cloud-computing-tutorials-tools-news",
-  "words": [ "Cloud", "Java", "AngularJS", "div", "class" ]
+  "words": [ "Cloud", "Docker", "Kubernetes", "OpenStack" ]
 }'
 ```
 
