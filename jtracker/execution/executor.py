@@ -271,14 +271,20 @@ class Executor(object):
                 if running_workers < self.parallel_workers:
                     worker = Worker(jt_home=self.jt_home, account_id=self.account_id,
                                     scheduler=self.scheduler, node_id=self.node_id)
-                    task = worker.next_task(job_state='running')  # get next task in the current running jobs
+                    try:
+                        task = worker.next_task(job_state='running')  # get next task in the current running jobs
+                    except:
+                        pass  # for whatever reason next_task call failed, TODO: add count for failed attempts, fail the job when next_task failed too many times
                     if not task:  # else try to start task for next job if it's appropriate to do so
                         if not (self.max_jobs and self.ran_jobs >= self.max_jobs) and \
                                         not len(self.scheduler.running_jobs()) >= self.parallel_jobs:
-                            task = worker.next_task(job_state='queued')
-                            if task:
-                                self._ran_jobs += 1
-                                click.echo('Executor: %s starts no. %s job' % (self.id, self.ran_jobs))
+                            try:
+                                task = worker.next_task(job_state='queued')
+                                if task:
+                                    self._ran_jobs += 1
+                                    click.echo('Executor: %s starts no. %s job' % (self.id, self.ran_jobs))
+                            except:
+                                pass  # no need to do anything, except maybe counting of failures
                     if task:
                         p = multiprocessing.Process(target=work,
                                                 name='task:%s job:%s' % (worker.task.get('name'), worker.task.get('job.id')),
