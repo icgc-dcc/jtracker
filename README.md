@@ -1,3 +1,6 @@
+## *This repository has been moved to https://github.com/jthub/jt-cli*
+
+
 # JTracker
 
 JTracker is a job tracking, scheduling and execution system with client-server architecture for distributed
