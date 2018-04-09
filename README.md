@@ -1,4 +1,4 @@
-## *This repository has been moved to https://github.com/jthub/jt-cli*
+## *This repository has been moved to https://github.com/jtracker-io/jt-cli*
 
 
 # JTracker
